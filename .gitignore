@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+.AppleDouble
+.Spotlight-V100
+.Trashes
+
+# Editors and IDEs
+.vscode/
+.idea/
+*.swp
+*~
+
+# Claude Code local config (machine-specific preview settings)
+.claude/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node (in case a build step is added later)
+node_modules/
+
+# Logs and scratch files
+*.log
+tmp/
+scratch/
+
+# Local franchise research index (not part of the app)
+ALIEN_INDEX.md
+ALIEN_INDEX.html
+aliens.json
+build_index.py

@@ -1,0 +1,993 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Alien Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Rubik:wght@400;500;700&display=swap">
+<style>
+/* Layout: sticky lab-stage on the left, step panel on the right; bottom bar carries Back/Next. Dark-first, acid green on black. */
+:root{
+  --bg:#050705; --bg2:#0b100c; --panel:#0e150f; --panel2:#152017; --line:#1f2f23; --line2:#2b3f2f;
+  --fg:#e9f4e6; --muted:#8fa693; --accent:#5df23c; --accent2:#b9ff4a; --accent-ink:#06120a; --glow:rgba(93,242,60,.35);
+  --warn:#ffb648; --danger:#ff5d6c; --gold:#ffd166;
+  --font-display:'Bangers',Impact,'Arial Black',sans-serif; --font-body:'Rubik',system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  --bg:#eef4ea; --bg2:#e1ebdc; --panel:#ffffff; --panel2:#f1f6ee; --line:#c9d8c6; --line2:#a9bea6;
+  --fg:#101a12; --muted:#58705c; --accent:#1e9e3c; --accent2:#16732b; --accent-ink:#ffffff; --glow:rgba(30,158,60,.25);
+  --warn:#b86e00; --danger:#c62f42; --gold:#a8741a; color-scheme:light; } }
+:root[data-theme="light"]{
+  --bg:#eef4ea; --bg2:#e1ebdc; --panel:#ffffff; --panel2:#f1f6ee; --line:#c9d8c6; --line2:#a9bea6;
+  --fg:#101a12; --muted:#58705c; --accent:#1e9e3c; --accent2:#16732b; --accent-ink:#ffffff; --glow:rgba(30,158,60,.25);
+  --warn:#b86e00; --danger:#c62f42; --gold:#a8741a; color-scheme:light; }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.45;
+  background-image:radial-gradient(ellipse at 50% -20%, var(--glow), transparent 55%);}
+button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--font-display);font-weight:400;letter-spacing:.03em;margin:0;text-wrap:balance}
+h2{font-size:1.9rem;line-height:1}
+h3{font-size:1.25rem;color:var(--accent);line-height:1.1}
+.app{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:12px 96px}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-block:6px 14px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo svg{width:46px;height:46px;flex:none}
+.logo h1{font-size:2.3rem;line-height:1;letter-spacing:.04em}
+.logo .sub{display:block;font-family:var(--font-body);font-size:.72rem;text-transform:uppercase;letter-spacing:.18em;color:var(--muted);margin-top:2px}
+.stepper{display:flex;gap:6px;flex-wrap:wrap}
+.step{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 8px;border-radius:999px;border:2px solid var(--line);background:var(--panel);font-weight:500;font-size:.85rem}
+.step .n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-family:var(--font-display);font-size:.95rem;background:var(--line);color:var(--fg)}
+.step.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.step.active .n{background:var(--accent);color:var(--accent-ink)}
+.step.done .n{background:var(--accent2);color:var(--accent-ink)}
+
+/* layout */
+.layout{display:grid;grid-template-columns:minmax(280px,400px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.layout{grid-template-columns:1fr}}
+.stage{position:sticky;top:calc(env(safe-area-inset-top,0px) + 10px);display:grid;gap:10px}
+@media (max-width:860px){.stage{position:static}}
+.stage-frame{position:relative;border-radius:20px;border:2px solid var(--line);background:var(--panel);overflow:hidden;
+  background-image:radial-gradient(circle, var(--line2) 1.1px, transparent 1.5px),radial-gradient(ellipse at 50% 20%, var(--panel2), var(--bg) 75%);
+  background-size:9px 9px,100% 100%;background-position:center}
+.stage-frame::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 85%, var(--glow), transparent 60%);pointer-events:none}
+.stage-frame svg{display:block;width:100%;height:auto;aspect-ratio:420/540;max-height:520px;margin:0 auto;position:relative;z-index:1}
+@media (max-width:860px){.stage-frame svg{max-height:300px}}
+.stage-tag{position:absolute;top:10px;left:12px;z-index:2;font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.stage-meta{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.stage-name{font-family:var(--font-display);font-size:1.7rem;line-height:1;letter-spacing:.03em}
+.stage-form{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.12em}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.stat{display:grid;gap:4px;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:center}
+.stat b{font-family:var(--font-display);font-size:1.2rem;letter-spacing:.04em;color:var(--fg)}
+.meter{height:7px;border-radius:4px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.stage-actions{display:flex;gap:8px}
+.btn{border:2px solid var(--line2);background:var(--panel2);border-radius:12px;padding:9px 14px;font-weight:500;transition:transform .08s,border-color .15s}
+.btn:hover{border-color:var(--accent)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent}
+.btn.small{padding:6px 10px;font-size:.82rem;border-radius:9px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* panel */
+.panel{min-width:0;display:grid;gap:18px}
+.panel-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.panel-head p{margin:4px 0 0;color:var(--muted);max-width:60ch}
+.section{display:grid;gap:10px}
+.section-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hint{font-size:.8rem;color:var(--muted)}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.grid.tight{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.card{position:relative;text-align:left;display:grid;gap:6px;padding:10px;border-radius:14px;border:2px solid var(--line);background:var(--panel);transition:border-color .15s,transform .08s}
+.card:hover{border-color:var(--line2);transform:translateY(-1px)}
+.card.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.card.sel::after{content:"";position:absolute;top:8px;right:8px;width:12px;height:12px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.card:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.card .thumb{aspect-ratio:1/1;border-radius:10px;background:var(--bg2);display:grid;place-items:center;overflow:hidden}
+.card .thumb svg{width:100%;height:100%;display:block}
+.card .title{font-weight:700;font-size:.92rem}
+.card .desc{font-size:.76rem;color:var(--muted);line-height:1.35}
+.card .tag{font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.card .badge{position:absolute;top:8px;left:8px;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:700}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:2px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 14px;font-weight:500;font-size:.88rem;min-width:46px}
+.chip.sel{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.chip:disabled{opacity:.35;cursor:not-allowed}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid var(--line);padding-bottom:8px}
+.tab{border:0;background:transparent;padding:8px 12px;border-radius:10px;font-weight:500;color:var(--muted)}
+.tab.sel{background:var(--panel2);color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)}
+.attr-row{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.attr-row:first-child{border-top:0}
+.attr-row label{font-weight:700;font-size:.88rem}
+.attr-row small{display:block;font-weight:400;color:var(--muted);font-size:.74rem}
+@media (max-width:520px){.attr-row{grid-template-columns:1fr}}
+.toggle{display:inline-flex;align-items:center;gap:8px;border:2px solid var(--line);border-radius:999px;padding:5px 12px 5px 6px;background:var(--panel)}
+.toggle i{width:34px;height:20px;border-radius:999px;background:var(--line);position:relative;transition:background .15s}
+.toggle i::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--fg);transition:left .15s}
+.toggle.on{border-color:var(--accent)}.toggle.on i{background:var(--accent)}.toggle.on i::after{left:17px;background:var(--accent-ink)}
+.colors{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.color{display:grid;gap:6px;padding:10px;border-radius:12px;border:2px solid var(--line);background:var(--panel)}
+.color label{font-size:.78rem;font-weight:700}
+.color input[type=color]{width:100%;height:40px;border:2px solid var(--line2);border-radius:8px;background:var(--bg2);padding:2px;cursor:pointer}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.swatch{display:grid;grid-template-columns:repeat(4,16px);gap:0;border:2px solid var(--line);border-radius:10px;overflow:hidden;padding:0;background:var(--panel)}
+.swatch i{display:block;height:28px}
+.swatch:hover{border-color:var(--accent)}
+.field{display:grid;gap:6px}
+.field label{font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.field .row{display:flex;gap:6px}
+.field input[type=text],.field textarea{flex:1;min-width:0;border:2px solid var(--line);background:var(--bg2);color:var(--fg);border-radius:10px;padding:9px 12px;font-family:inherit;font-size:1rem}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.bio{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:14px 16px;line-height:1.55;max-width:70ch}
+.bio p{margin:0 0 .6em}.bio p:last-child{margin:0}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.summary .kv{background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:10px 12px}
+.summary .kv b{display:block;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.counter{font-family:var(--font-display);font-size:1.3rem;color:var(--accent);letter-spacing:.04em}
+.power .cat{font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:6px}
+.power .cat i{width:10px;height:10px;border-radius:3px;background:var(--c)}
+.power .mods{display:flex;gap:4px;flex-wrap:wrap;font-size:.7rem;font-weight:700}
+.power .mods span{background:var(--bg2);border-radius:6px;padding:2px 6px}
+.hangar{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.hangar .card .thumb{aspect-ratio:420/540}
+.hangar .actions{display:flex;gap:4px}
+.archive .card .thumb{aspect-ratio:560/720;background:#0b0f0c}
+.archive .card .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.code{display:flex;gap:6px}
+.code input{flex:1;min-width:0;border:2px solid var(--line);background:var(--bg2);color:var(--fg);border-radius:10px;padding:8px 10px;font-family:ui-monospace,monospace;font-size:.8rem}
+.notice{font-size:.82rem;color:var(--accent2);min-height:1.2em}
+.empty{color:var(--muted);font-size:.9rem;padding:14px;border:2px dashed var(--line);border-radius:12px}
+
+/* bottom nav */
+.navbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--panel);border-top:2px solid var(--line)}
+.navbar .mid{font-size:.8rem;color:var(--muted);text-align:center;letter-spacing:.1em;text-transform:uppercase}
+.navbar .btn{min-width:110px}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.72);display:grid;place-items:center;padding:16px}
+.modal-box{background:var(--panel);border:2px solid var(--line2);border-radius:18px;padding:16px;max-width:560px;width:100%;max-height:100%;overflow:auto;display:grid;gap:12px}
+.modal-box img{width:100%;height:auto;border-radius:12px;display:block}
+.modal-box .row{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="logo">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="#0b0f0c" stroke="#5df23c" stroke-width="3"/></svg>
+      <div><h1>Alien Builder</h1><span class="sub">Omi-Forge specimen lab</span></div>
+    </div>
+    <nav class="stepper" id="stepper" aria-label="Build steps"></nav>
+  </header>
+
+  <main class="layout">
+    <aside class="stage" aria-label="Alien preview">
+      <div class="stage-frame"><span class="stage-tag">Live specimen</span><div id="preview"></div></div>
+      <div class="stage-meta"><div class="stage-name" id="stageName">Unnamed specimen</div><div class="stage-form" id="stageForm"></div></div>
+      <div class="stats" id="stageStats"></div>
+      <div class="stage-actions">
+        <button class="btn" id="btnScramble" type="button">Scramble</button>
+        <button class="btn ghost" id="btnReset" type="button">Reset</button>
+      </div>
+    </aside>
+    <section class="panel" id="panel"></section>
+  </main>
+</div>
+
+<div class="navbar">
+  <button class="btn" id="btnBack" type="button">Back</button>
+  <div class="mid" id="navLabel"></div>
+  <button class="btn primary" id="btnNext" type="button">Next</button>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="row"><h2 id="modalTitle">Specimen card</h2><button class="btn small" id="modalClose" type="button">Close</button></div>
+    <img id="modalImg" alt="Rendered alien card">
+    <p class="hint" id="modalNote"></p>
+    <p class="hint">Right-click or long-press the card to save the image file.</p>
+  </div>
+</div>
+<script>
+/* ============================ DATA ============================ */
+const ALL=['humanoid','blob','insectoid','reptilian','crystalline','energy','aquatic','mechanical','plant','tiny','beast'];
+const FORMS={
+  humanoid:{name:'Humanoid',tag:'Brawler frame',desc:'Upright and muscular. Built for the front line and for throwing cars.',arms:[2,4,6],legs:[2],eyes:[1,2,3,4],
+    d:{arms:4,legs:2,eyes:4,size:'large',wings:false,tail:false,parts:{head:'horned',eyes:'oval',torso:'brawler',arms:'brawler',legs:'stout',wings:'bat',tail:'spiked'},colors:{primary:'#a8311f',secondary:'#c98f2e',accent:'#6ee836',eye:'#f2c232'}},
+    stats:{str:8,spd:4,dur:7,int:4,enr:2}},
+  blob:{name:'Amorphous',tag:'Polymorph mass',desc:'A living fluid that holds whatever shape it feels like today.',arms:[0,2,4],legs:[0,1],eyes:[1,2,3],
+    d:{arms:2,legs:0,eyes:1,size:'medium',wings:false,tail:false,parts:{head:'mound',eyes:'glow',torso:'mass',arms:'tentacle',legs:'puddle',wings:'energy',tail:'whip'},colors:{primary:'#2f9c56',secondary:'#145a32',accent:'#b7f24a',eye:'#eaffc4'}},
+    stats:{str:3,spd:5,dur:6,int:5,enr:4}},
+  insectoid:{name:'Insectoid',tag:'Hive flyer',desc:'Chitin, wings and far too many legs. Fast, twitchy, hard to pin down.',arms:[2,4,6],legs:[2,4,6],eyes:[2,3,4,6],
+    d:{arms:4,legs:2,eyes:4,size:'medium',wings:true,tail:true,parts:{head:'mandible',eyes:'compound',torso:'thorax',arms:'insect',legs:'insect',wings:'insect',tail:'stinger'},colors:{primary:'#5b9f2c',secondary:'#203f14',accent:'#c6f04e',eye:'#f08a22'}},
+    stats:{str:4,spd:8,dur:3,int:5,enr:3}},
+  reptilian:{name:'Reptilian',tag:'Apex predator',desc:'Scales, claws and a tail that doubles as a club. Bites first.',arms:[2,4],legs:[2,4],eyes:[1,2,3],
+    d:{arms:2,legs:2,eyes:2,size:'large',wings:false,tail:true,parts:{head:'jaws',eyes:'slit',torso:'scaled',arms:'claw',legs:'digitigrade',wings:'bat',tail:'spiked'},colors:{primary:'#346f3f',secondary:'#c9b474',accent:'#f07f2e',eye:'#f2d53c'}},
+    stats:{str:7,spd:6,dur:6,int:3,enr:2}},
+  crystalline:{name:'Crystalline',tag:'Living mineral',desc:'A silicon body that grows, shatters and regrows. Lasers bounce right off.',arms:[2,4],legs:[2],eyes:[1,2,3],
+    d:{arms:2,legs:2,eyes:2,size:'large',wings:false,tail:false,parts:{head:'shard',eyes:'glow',torso:'crystal',arms:'crystal',legs:'crystal',wings:'energy',tail:'spiked'},colors:{primary:'#3fae9f',secondary:'#14504d',accent:'#9af5e6',eye:'#dffaf5'}},
+    stats:{str:7,spd:3,dur:9,int:4,enr:5}},
+  energy:{name:'Elemental',tag:'Living plasma',desc:'A body of contained fire, frost or lightning. Handle with gloves.',arms:[2,4],legs:[0,2],eyes:[1,2,3],
+    d:{arms:2,legs:2,eyes:2,size:'medium',wings:false,tail:false,parts:{head:'flame',eyes:'glow',torso:'core',arms:'flame',legs:'stout',wings:'energy',tail:'whip'},colors:{primary:'#a82a1f',secondary:'#e8961f',accent:'#ffe45a',eye:'#fff1a0'}},
+    stats:{str:5,spd:5,dur:5,int:4,enr:9}},
+  aquatic:{name:'Aquatic',tag:'Abyssal hunter',desc:'Fins, gills and a lantern glow. Deadly in water, cranky out of it.',arms:[2,4],legs:[1,2],eyes:[1,2,3,4],
+    d:{arms:2,legs:1,eyes:2,size:'medium',wings:false,tail:false,parts:{head:'finned',eyes:'pupil',torso:'scaled',arms:'claw',legs:'serpent',wings:'energy',tail:'fin'},colors:{primary:'#2a66ad',secondary:'#86c3e0',accent:'#4fe8c6',eye:'#bdf03e'}},
+    stats:{str:6,spd:7,dur:5,int:4,enr:3}},
+  mechanical:{name:'Technorganic',tag:'Living machine',desc:'Circuitry that grew itself. Merges with any tech it touches.',arms:[2,4],legs:[0,2,4],eyes:[1,2,3],
+    d:{arms:2,legs:2,eyes:1,size:'medium',wings:false,tail:false,parts:{head:'visor',eyes:'glow',torso:'chassis',arms:'mech',legs:'mech',wings:'energy',tail:'whip'},colors:{primary:'#23262f',secondary:'#62b254',accent:'#8df050',eye:'#a8f25c'}},
+    stats:{str:5,spd:5,dur:6,int:8,enr:6}},
+  plant:{name:'Botanical',tag:'Rooted guardian',desc:'Vines, bark and seed pods. Slow to anger, impossible to uproot.',arms:[2,4,6],legs:[1,2,4],eyes:[1,2,3],
+    d:{arms:4,legs:1,eyes:1,size:'large',wings:false,tail:false,parts:{head:'bud',eyes:'oval',torso:'trunk',arms:'vine',legs:'roots',wings:'leaf',tail:'whip'},colors:{primary:'#3d7421',secondary:'#79b83c',accent:'#e6d43e',eye:'#f2d85a'}},
+    stats:{str:6,spd:4,dur:6,int:5,enr:4}},
+  tiny:{name:'Minikin',tag:'Pocket genius',desc:'Palm-sized, frog-limbed and smarter than everyone in the room.',arms:[2,4],legs:[2],eyes:[1,2,3,4],
+    d:{arms:2,legs:2,eyes:2,size:'tiny',wings:false,tail:false,parts:{head:'cranium',eyes:'oval',torso:'slim',arms:'spindly',legs:'spindly',wings:'insect',tail:'whip'},colors:{primary:'#7f858e',secondary:'#4e535b',accent:'#6ee836','eye':'#5fe04a'}},
+    stats:{str:1,spd:4,dur:2,int:10,enr:2}},
+  beast:{name:'Beast',tag:'Quadruped hunter',desc:'All muscle, jaws and instinct. Hunts by scent and sound, not sight.',arms:[0,2],legs:[4],eyes:[0,2,3,4],layout:'beast',
+    d:{arms:0,legs:4,eyes:0,size:'large',wings:false,tail:true,parts:{head:'maw',eyes:'slit',torso:'haunch',arms:'claw',legs:'digitigrade',wings:'bat',tail:'spiked'},colors:{primary:'#c2671f',secondary:'#6e3a12','accent':'#f2a33a','eye':'#f2d53c'}},
+    stats:{str:7,spd:8,dur:6,int:2,enr:1}},
+};
+const SIZES={tiny:{name:'Tiny',k:.58,desc:'Fits in a hand'},small:{name:'Small',k:.82,desc:'Knee-high'},medium:{name:'Medium',k:1,desc:'Human scale'},large:{name:'Large',k:1.1,desc:'Fills a doorway'},giant:{name:'Giant',k:1.2,desc:'Blocks the sun'}};
+
+const HEADS={
+  dome:{name:'Dome',desc:'Smooth and rounded.',forms:['humanoid','blob','aquatic','energy','mechanical','plant','tiny']},
+  cranium:{name:'Cranium',desc:'Oversized brain case, huge eyes.',forms:['tiny','blob','mechanical','insectoid']},
+  maw:{name:'Maw',desc:'Gaping jaws with scent gills.',forms:['beast','reptilian','humanoid','aquatic']},
+  horned:{name:'Horned',desc:'Twin sweeping horns.',forms:['humanoid','reptilian','crystalline']},
+  finned:{name:'Finned',desc:'Crest fin and cheek fins.',forms:['aquatic','reptilian','humanoid','energy']},
+  mandible:{name:'Mandible',desc:'Wide head, snapping jaws, antennae.',forms:['insectoid','blob']},
+  shard:{name:'Shard',desc:'Faceted crystal skull.',forms:['crystalline','mechanical','insectoid']},
+  visor:{name:'Visor',desc:'Sensor band across the face.',forms:['mechanical','humanoid','crystalline','insectoid','tiny']},
+  flame:{name:'Flare',desc:'Crown of living fire.',forms:['energy']},
+  bud:{name:'Bud',desc:'Petals unfurling from the crown.',forms:['plant','blob']},
+  skull:{name:'Skull',desc:'Bony face, bared teeth.',forms:['humanoid','reptilian','plant','crystalline','energy','beast']},
+  mound:{name:'Mound',desc:'Head and body melt together.',forms:['blob','plant','aquatic']},
+  jaws:{name:'Jaws',desc:'Heavy jaw full of teeth.',forms:['reptilian','aquatic','humanoid','insectoid','beast']},
+  antenna:{name:'Antenna',desc:'Round head, glowing feelers.',forms:['insectoid','blob','aquatic','mechanical','energy','tiny']},
+};
+const EYESTYLES={
+  oval:{name:'Solid',desc:'Classic pupil-less glow.'},
+  slit:{name:'Slit',desc:'Predator pupils.'},
+  pupil:{name:'Iris',desc:'Sclera, iris and pupil.'},
+  compound:{name:'Compound',desc:'Faceted insect lenses.'},
+  glow:{name:'Radiant',desc:'Pure light, no outline.'},
+};
+const TORSOS={
+  brawler:{name:'Brawler',desc:'Broad chest, narrow waist.',forms:['humanoid','reptilian','energy','aquatic']},
+  slim:{name:'Lean',desc:'Slender and quick.',forms:['humanoid','insectoid','energy','mechanical','plant','aquatic','tiny']},
+  haunch:{name:'Haunch',desc:'Hunched shoulders, heavy hindquarters.',forms:['beast']},
+  carapace:{name:'Carapace',desc:'Plated back ridge.',forms:['beast']},
+  lean:{name:'Runner',desc:'Long and lean for the chase.',forms:['beast']},
+  thorax:{name:'Thorax',desc:'Segmented body plates.',forms:['insectoid','blob','mechanical','tiny']},
+  mass:{name:'Mass',desc:'A shapeless rolling bulk.',forms:['blob','plant','aquatic']},
+  crystal:{name:'Prism',desc:'Angular faceted body.',forms:['crystalline','mechanical','humanoid']},
+  chassis:{name:'Chassis',desc:'Plated frame with a power core.',forms:['mechanical','crystalline','humanoid']},
+  core:{name:'Core',desc:'Cracks leaking raw energy.',forms:['energy','crystalline','mechanical']},
+  trunk:{name:'Trunk',desc:'Bark-ringed column.',forms:['plant','blob','humanoid']},
+  scaled:{name:'Scaled',desc:'Armored back, soft belly.',forms:['reptilian','aquatic','humanoid','insectoid']},
+  shell:{name:'Shell',desc:'Domed carapace.',forms:['reptilian','insectoid','crystalline','plant']},
+};
+const ARMS={
+  brawler:{name:'Brawler',desc:'Thick arms, big fists.',forms:['humanoid','reptilian','energy','aquatic','plant','beast']},
+  claw:{name:'Claw',desc:'Three hooked talons.',forms:['reptilian','aquatic','humanoid','insectoid','blob','beast','tiny']},
+  spindly:{name:'Spindly',desc:'Thin frog arms, padded fingers.',forms:['tiny','blob','insectoid','plant']},
+  tentacle:{name:'Tentacle',desc:'Boneless, grasping.',forms:['blob','aquatic','plant','energy']},
+  blade:{name:'Blade',desc:'Forearm ends in a scythe.',forms:['insectoid','crystalline','mechanical','humanoid','reptilian']},
+  crystal:{name:'Shard',desc:'Angular with a spike fist.',forms:['crystalline','energy']},
+  mech:{name:'Servo',desc:'Jointed pincers.',forms:['mechanical','humanoid','crystalline']},
+  vine:{name:'Vine',desc:'Whipping creepers with leaf tips.',forms:['plant','blob']},
+  insect:{name:'Chitin',desc:'Thin jointed limbs.',forms:['insectoid','mechanical','aquatic','tiny']},
+  flame:{name:'Ember',desc:'Fists wreathed in flame.',forms:['energy','crystalline']},
+};
+const LEGS={
+  stout:{name:'Stout',desc:'Thick legs, flat feet.',counts:[2,4],forms:['humanoid','reptilian','energy','plant','blob','aquatic','beast','tiny']},
+  spindly:{name:'Spindly',desc:'Thin frog legs, padded toes.',counts:[2,4],forms:['tiny','blob','insectoid','plant']},
+  digitigrade:{name:'Raptor',desc:'Reverse knee, clawed toes.',counts:[2,4],forms:['reptilian','humanoid','insectoid','aquatic','energy','beast','tiny']},
+  insect:{name:'Chitin',desc:'Splayed jointed legs.',counts:[2,4,6],forms:['insectoid','mechanical','crystalline','blob']},
+  crystal:{name:'Shard',desc:'Angular crystal legs.',counts:[2,4],forms:['crystalline','mechanical','energy','beast']},
+  mech:{name:'Servo',desc:'Pistons and boots.',counts:[2,4],forms:['mechanical','humanoid','crystalline','beast']},
+  vine:{name:'Vine',desc:'Rooted creeper legs.',counts:[2,4],forms:['plant','blob','beast']},
+  flipper:{name:'Flipper',desc:'Webbed fins for feet.',counts:[2],forms:['aquatic','blob']},
+  serpent:{name:'Serpent',desc:'One long coiling tail.',counts:[1],forms:['aquatic','reptilian','blob','plant','humanoid']},
+  puddle:{name:'Puddle',desc:'Spreads out across the floor.',counts:[0,1],forms:['blob','aquatic','plant']},
+  roots:{name:'Roots',desc:'A tangle of root tendrils.',counts:[1],forms:['plant','blob']},
+  wisp:{name:'Wisp',desc:'Trails off into energy.',counts:[0],forms:['energy','blob','mechanical']},
+  levitate:{name:'Levitate',desc:'Hovers above the ground.',counts:[0],forms:['energy','mechanical','blob','crystalline']},
+};
+const WINGS={insect:{name:'Gossamer',desc:'Translucent veined wings.'},bat:{name:'Membrane',desc:'Leathery bat wings.'},energy:{name:'Plasma',desc:'Wings of pure energy.'},leaf:{name:'Frond',desc:'Broad leaf wings.'}};
+const TAILS={spiked:{name:'Spiked',desc:'Club tail with spines.'},fin:{name:'Fin',desc:'Paddle tail.'},whip:{name:'Whip',desc:'Long and thin.'},stinger:{name:'Stinger',desc:'Venom barb at the tip.'}};
+const PATTERNS={none:{name:'None'},stripes:{name:'Stripes'},spots:{name:'Spots'},plates:{name:'Plates'},cracks:{name:'Cracks'},scales:{name:'Scales'}};
+const PALETTES=[
+  {name:'Magma',c:['#a8311f','#c98f2e','#6ee836','#f2c232']},{name:'Hive',c:['#5b9f2c','#203f14','#c6f04e','#f08a22']},
+  {name:'Abyss',c:['#2a66ad','#86c3e0','#4fe8c6','#bdf03e']},{name:'Void',c:['#23262f','#62b254','#8df050','#a8f25c']},
+  {name:'Ghost',c:['#cfc9d9','#3a2d63','#a98cf0','#e8405c']},{name:'Ember',c:['#a82a1f','#e8961f','#ffe45a','#fff1a0']},
+  {name:'Frost',c:['#3fae9f','#14504d','#9af5e6','#dffaf5']},{name:'Violet',c:['#55309a','#d98fe6','#e6bd4e','#6ee836']},
+  {name:'Slime',c:['#2f9c56','#145a32','#b7f24a','#eaffc4']},{name:'Rust',c:['#73391f','#c48a52','#f05e2a','#f2d89a']},
+  {name:'Bone',c:['#b9ad8f','#4d3f36','#ff3b4e','#e63946']},{name:'Nightshade',c:['#2b1f3d','#8b5cf6','#ff7ad9','#f9f871']},
+];
+const CLOTHING={
+  none:{name:'None',desc:'Natural hide only.'},
+  jumpsuit:{name:'Jumpsuit',desc:'Black suit with a racing stripe.'},
+  armor:{name:'Battle plate',desc:'Chest plate and pauldrons.'},
+  cloak:{name:'Cloak',desc:'Hooded traveler cloak.'},
+  sash:{name:'Sash',desc:'Diagonal warrior sash.'},
+  techsuit:{name:'Tech suit',desc:'Glowing seams and a core.'},
+  tunic:{name:'Tunic',desc:'Simple wrapped tunic.'},
+};
+const ACCESSORIES={
+  dial:{name:'Omi dial',desc:'Double-helix transformation dial.'},
+  badge:{name:'Patrol badge',desc:'Galactic law-enforcement badge.'},
+  goggles:{name:'Goggles',desc:'Brass flight goggles.'},
+  bracers:{name:'Bracers',desc:'Gem-studded wrist guards.'},
+  belt:{name:'Utility belt',desc:'Pouches and a buckle.'},
+  harness:{name:'Tech harness',desc:'Cross straps and a power pack.'},
+  crown:{name:'Crown',desc:'Royal circlet.'},
+  scarf:{name:'Scarf',desc:'Wind-whipped neck scarf.'},
+};
+const ALTERATIONS={
+  spikes:{name:'Shoulder spikes',desc:'Bone spurs on the shoulders.'},
+  cyberarm:{name:'Cybernetic arm',desc:'One arm replaced with chrome.'},
+  crystals:{name:'Crystal growths',desc:'Shards erupting from the body.'},
+  biolum:{name:'Bioluminescence',desc:'Glowing spots along the hide.'},
+  scars:{name:'Battle scars',desc:'Marks from old fights.'},
+  plates:{name:'Bone plates',desc:'Natural armor on chest and arms.'},
+  tusks:{name:'Tusks',desc:'Twin tusks from the jaw.'},
+};
+const ENHANCEMENTS={
+  aura:{name:'Energy aura',desc:'A glowing field around the body.',mods:{enr:1}},
+  plating:{name:'Armor plating',desc:'Heavy plates on arms and legs.',mods:{dur:2,spd:-1}},
+  sizeboost:{name:'Mass surge',desc:'Grows a size larger.',mods:{str:1,dur:1}},
+  trails:{name:'Speed trails',desc:'Afterimages when moving.',mods:{spd:2}},
+  rockarmor:{name:'Omi surge',desc:'Blue crystal armor erupts over the body.',mods:{dur:2,str:1}},
+  veins:{name:'Power veins',desc:'Glowing channels across the skin.',mods:{enr:2}},
+};
+const CATS={elemental:{name:'Elemental',c:'#ff7a3d'},physical:{name:'Physical',c:'#ff4d6d'},mind:{name:'Mind',c:'#b89cff'},tech:{name:'Tech',c:'#4ec9ff'},mobility:{name:'Mobility',c:'#ffd166'},special:{name:'Special',c:'#5df23c'}};
+const MAX_POWERS=4;
+const POWERS=[
+  {id:'pyro',name:'Pyrokinesis',cat:'elemental',desc:'Hurl and shape fire.',aff:['energy'],mods:{enr:2}},
+  {id:'cryo',name:'Cryokinesis',cat:'elemental',desc:'Freezing breath and ice walls.',aff:['aquatic','energy'],mods:{enr:2}},
+  {id:'electro',name:'Electrokinesis',cat:'elemental',desc:'Lightning from the fingertips.',aff:['mechanical','energy'],mods:{enr:2}},
+  {id:'hydro',name:'Hydrokinesis',cat:'elemental',desc:'Bend water to your will.',aff:['aquatic','blob'],mods:{enr:1,spd:1}},
+  {id:'geo',name:'Geokinesis',cat:'elemental',desc:'Raise stone and shake the ground.',aff:['crystalline'],mods:{str:1,dur:1}},
+  {id:'chloro',name:'Chlorokinesis',cat:'elemental',desc:'Command plants to grow and grab.',aff:['plant'],mods:{enr:1,dur:1}},
+  {id:'strength',name:'Super strength',cat:'physical',desc:'Lift trucks. Throw trucks.',aff:['humanoid','reptilian'],mods:{str:3}},
+  {id:'speed',name:'Super speed',cat:'physical',desc:'Faster than the eye can track.',aff:['insectoid','reptilian'],mods:{spd:3}},
+  {id:'durability',name:'Diamond hide',cat:'physical',desc:'Shrug off blasts and blades.',aff:['crystalline','reptilian'],mods:{dur:3}},
+  {id:'regen',name:'Regeneration',cat:'physical',desc:'Regrow lost limbs in seconds.',aff:['blob','plant'],mods:{dur:2}},
+  {id:'elastic',name:'Elasticity',cat:'physical',desc:'Stretch, flatten, squeeze through cracks.',aff:['blob'],mods:{spd:1,dur:1}},
+  {id:'sizeshift',name:'Size shifting',cat:'physical',desc:'Grow to a giant or shrink to a bug.',aff:['humanoid','blob'],mods:{str:1,dur:1}},
+  {id:'telepathy',name:'Telepathy',cat:'mind',desc:'Read and send thoughts.',aff:['humanoid','plant'],mods:{int:2}},
+  {id:'telekinesis',name:'Telekinesis',cat:'mind',desc:'Move objects with the mind.',aff:['energy'],mods:{int:1,enr:2}},
+  {id:'genius',name:'Hyper intellect',cat:'mind',desc:'Builds a gadget out of anything.',aff:['mechanical','insectoid'],mods:{int:3}},
+  {id:'dangersense',name:'Danger sense',cat:'mind',desc:'Feels a threat before it lands.',aff:['insectoid','aquatic'],mods:{int:1,spd:1}},
+  {id:'technopathy',name:'Techno-merge',cat:'tech',desc:'Fuse with and upgrade machines.',aff:['mechanical'],mods:{int:2,enr:1}},
+  {id:'blast',name:'Energy blasts',cat:'tech',desc:'Bolts of raw power from the hands.',aff:['energy','mechanical'],mods:{enr:2}},
+  {id:'laser',name:'Optic beams',cat:'tech',desc:'Focused beams from the eyes.',aff:['crystalline','mechanical'],mods:{enr:2}},
+  {id:'jamming',name:'Signal jamming',cat:'tech',desc:'Scrambles enemy comms and tech.',aff:['mechanical','insectoid'],mods:{int:1}},
+  {id:'flight',name:'Flight',cat:'mobility',desc:'Takes to the sky at will.',aff:['insectoid','energy'],mods:{spd:2}},
+  {id:'wallcrawl',name:'Wall crawling',cat:'mobility',desc:'Climbs any surface.',aff:['insectoid','reptilian'],mods:{spd:1}},
+  {id:'phase',name:'Intangibility',cat:'mobility',desc:'Passes through solid walls.',aff:['blob','energy'],mods:{dur:1,spd:1}},
+  {id:'burrow',name:'Burrowing',cat:'mobility',desc:'Tunnels through rock.',aff:['reptilian','plant'],mods:{str:1}},
+  {id:'deepsea',name:'Deep-sea adaptation',cat:'mobility',desc:'Breathes water, shrugs off pressure.',aff:['aquatic'],mods:{spd:1,dur:1}},
+  {id:'blink',name:'Blink step',cat:'mobility',desc:'Short-range teleport.',aff:['energy','crystalline'],mods:{spd:2,enr:1}},
+  {id:'invisible',name:'Invisibility',cat:'special',desc:'Fades from sight entirely.',aff:['blob','energy'],mods:{spd:1}},
+  {id:'camo',name:'Camouflage',cat:'special',desc:'Skin matches any surroundings.',aff:['plant','reptilian','insectoid'],mods:{int:1}},
+  {id:'sonic',name:'Sonic scream',cat:'special',desc:'A shriek that shatters glass.',aff:['aquatic','humanoid'],mods:{enr:2}},
+  {id:'acid',name:'Acid spit',cat:'special',desc:'Corrosive goo at range.',aff:['blob','insectoid'],mods:{enr:1}},
+  {id:'shards',name:'Shard volley',cat:'special',desc:'Fires crystal spikes.',aff:['crystalline'],mods:{enr:1,dur:1}},
+  {id:'goo',name:'Sticky goo',cat:'special',desc:'Traps foes in slime.',aff:['insectoid','blob'],mods:{enr:1}},
+  {id:'venom',name:'Venom sting',cat:'special',desc:'Paralyzing sting.',aff:['insectoid','reptilian'],mods:{str:1}},
+];
+const STAT_NAMES={str:'Strength',spd:'Speed',dur:'Defense',int:'Intellect',enr:'Energy'};
+const NAME_A=['Vor','Kra','Zel','Mok','Tyr','Xen','Bru','Gal','Ska','Ulm','Dra','Nyx','Pyr','Fen','Quo','Rax','Thal','Ith','Vul','Oss'];
+const NAME_B=['gath','tron','mir','zok','ax','dren','ulk','esh','ion','mand','vane','rik','oth','umbra','ex','ara','gon','ith','quil','orn'];
+const SPEC_A=['Tetra','Poly','Pyro','Petro','Vulpi','Chloro','Galva','Lepido','Pisci','Necro','Aero','Crysta','Chrono','Vortu','Sauro'];
+const SPEC_B=['mand','morph','nite','sapien','mancer','phyte','form','pteran','voran','mech','derm','lith','gen','mantis','gnath'];
+const PLAN_A=['Khor','Vilg','Pet','Anur','Pisc','Galv','Lepid','Pyr','Kin','Xand','Mor','Terra','Aur','Ob','Sang'];
+const PLAN_B=['os','axia','ropia','ciss','an Prime','oria','ex IV','ion','us','dra','eth','ule','anta','is','ara'];
+</script>
+<script>
+/* ============================ RENDERER ============================ */
+/* Comic / Kirby-inspired cel rendering: heavy ink outlines, cast shadows with halftone + hatching,
+   angular anatomy, Kirby crackle around energy, print grain on the final image. */
+const INK='#120f16', BONE='#d9cfb4', ROCK='#2f6fc4', ROCK2='#8fc3ff', LW=6;
+let U='m', CN=0; // id suffix per inline SVG; CN numbers clip paths within one render
+function hexToRgb(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(x=>x+x).join('');const n=parseInt(h,16);return [n>>16&255,n>>8&255,n&255]}
+function shade(h,amt){const [r,g,b]=hexToRgb(h);const f=v=>Math.max(0,Math.min(255,Math.round(amt<0?v*(1+amt):v+(255-v)*amt)));return '#'+[f(r),f(g),f(b)].map(v=>v.toString(16).padStart(2,'0')).join('')}
+function el(tag,defaults,x=''){const a={...defaults};if(x){x.replace(/([\w:-]+)="([^"]*)"/g,(m,k,v)=>{a[k]=v;return ''})}return `<${tag} ${Object.entries(a).map(([k,v])=>`${k}="${v}"`).join(' ')}/>`}
+const shape=(d,fill,x='')=>el('path',{d,fill,stroke:INK,'stroke-width':LW,'stroke-linejoin':'round','stroke-linecap':'round'},x);
+const circ=(cx,cy,r,fill,x='')=>el('circle',{cx,cy,r,fill,stroke:INK,'stroke-width':LW},x);
+const ell=(cx,cy,rx,ry,fill,x='')=>el('ellipse',{cx,cy,rx,ry,fill,stroke:INK,'stroke-width':LW},x);
+const poly=(pts,fill,x='')=>el('polygon',{points:pts.map(p=>p.join(',')).join(' '),fill,stroke:INK,'stroke-width':LW,'stroke-linejoin':'round'},x);
+const line=(d,col,w,x='')=>el('path',{d,fill:'none',stroke:col,'stroke-width':w,'stroke-linecap':'round','stroke-linejoin':'round'},x);
+const ink=(d,w=2.6,op=.7)=>line(d,INK,w,`opacity="${op}"`); // interior hand-drawn detail line
+const circD=(cx,cy,r)=>`M ${cx-r} ${cy} a ${r} ${r} 0 1 0 ${2*r} 0 a ${r} ${r} 0 1 0 ${-2*r} 0 Z`;
+const ellD=(cx,cy,rx,ry)=>`M ${cx-rx} ${cy} a ${rx} ${ry} 0 1 0 ${2*rx} 0 a ${rx} ${ry} 0 1 0 ${-2*rx} 0 Z`;
+const polyD=pts=>'M '+pts.map(p=>p.join(' ')).join(' L ')+' Z';
+const glow=()=>`filter="url(#glow${U})"`;
+const mid=(x1,y1,x2,y2,a=.3,b=.72)=>`M ${x1+(x2-x1)*a} ${y1+(y2-y1)*a} L ${x1+(x2-x1)*b} ${y1+(y2-y1)*b}`;
+/* shaded(): a filled shape with a cast shadow on its lower-right: deep halftone shadow at the edge,
+   a hatched band toward the light, lit core. k scales the shadow depth for small shapes. */
+function shaded(d,fill,x='',k=1){
+  const id=`s${U}${CN++}`,dx=-11*k,dy=-9*k;
+  return `<clipPath id="${id}"><path d="${d}"/></clipPath>`+el('path',{d,fill,stroke:INK,'stroke-width':LW,'stroke-linejoin':'round','stroke-linecap':'round'},x)
+    +`<g clip-path="url(#${id})"><path d="${d}" fill="${shade(fill,-.55)}" opacity=".6"/><path d="${d}" fill="url(#dots${U})"/>`
+    +`<path d="${d}" fill="${fill}" transform="translate(${dx} ${dy})"/><path d="${d}" fill="url(#hatch${U})" transform="translate(${dx} ${dy})"/>`
+    +`<path d="${d}" fill="${fill}" transform="translate(${dx*2.1} ${dy*2.1})"/><path d="${d}" fill="#fff" opacity=".10" transform="translate(${dx*4} ${dy*4})"/></g>`
+    +el('path',{d,fill:'none',stroke:INK,'stroke-width':LW,'stroke-linejoin':'round','stroke-linecap':'round'},x.replace(/fill="[^"]*"/,''));
+}
+function limbs(segs,col){
+  let o='';for(const [d,w] of segs)o+=`<path d="${d}" fill="none" stroke="${INK}" stroke-width="${w+10}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  for(const [d,w] of segs)o+=`<path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  for(const [d,w] of segs){const a=w*.17,b=w*.22;
+    o+=`<path d="${d}" fill="none" stroke="url(#hatch${U})" stroke-width="${w*.5}" stroke-linecap="round" stroke-linejoin="round" transform="translate(${a} ${a*.8})"/>`;
+    o+=`<path d="${d}" fill="none" stroke="${shade(col,-.55)}" stroke-width="${w*.3}" stroke-linecap="round" stroke-linejoin="round" opacity=".7" transform="translate(${b} ${b*.8})"/>`;
+    o+=`<path d="${d}" fill="none" stroke="#fff" stroke-width="${w*.14}" stroke-linecap="round" stroke-linejoin="round" opacity=".12" transform="translate(${-b*1.2} ${-b})"/>`}
+  return o;
+}
+const limb=(d,w,col)=>limbs([[d,w]],col);
+/* Kirby crackle: a ring of black energy blobs with pinhole highlights */
+function kirby(cx,cy,rx,ry,n,seed,inner=.6,col=null){let s=Math.abs(seed)*7919+13,o='';const rnd=()=>{s=(s*9301+49297)%233280;return s/233280};
+  for(let i=0;i<n;i++){const a=rnd()*Math.PI*2,f=inner+rnd()*(1-inner),r=1.6+rnd()*4.6,x=cx+Math.cos(a)*rx*f,y=cy+Math.sin(a)*ry*f;
+    o+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${INK}"/>`;if(r>3.6)o+=`<circle cx="${(x-r*.3).toFixed(1)}" cy="${(y-r*.3).toFixed(1)}" r="${(r*.32).toFixed(1)}" fill="${col||'#fff'}" opacity=".85"/>`}
+  return o}
+const EYE_POS={0:[],1:[[0,0]],2:[[-22,0],[22,0]],3:[[-22,4],[22,4],[0,-20]],4:[[-25,6],[25,6],[-12,-16],[12,-16]],6:[[-26,10],[26,10],[-10,-6],[10,-6],[-22,-24],[22,-24]]};
+const EYE_K={0:1,1:1.7,2:1,3:.9,4:.8,6:.68};
+
+/* ---- heads: angular skulls with cheekbones ---- */
+const D_DOME='M 162 134 Q 166 84 210 78 Q 254 84 258 134 L 250 178 L 224 208 L 196 208 L 170 178 Z';
+const D_WIDE='M 148 128 Q 160 88 210 88 Q 260 88 272 128 L 262 170 L 228 202 L 192 202 L 158 170 Z';
+const D_SHARD='M 170 150 L 178 96 L 210 78 L 242 96 L 250 150 L 232 204 L 188 204 Z';
+const D_BOX='M 166 136 L 172 94 L 210 86 L 248 94 L 254 136 L 246 184 L 222 208 L 198 208 L 174 184 Z';
+const D_MOUND='M 148 168 Q 158 108 210 104 Q 262 108 272 168 L 262 200 L 232 214 L 190 214 L 158 200 Z';
+const D_JAWS='M 158 134 Q 164 88 210 86 Q 256 88 262 134 L 276 182 L 236 214 L 184 214 L 144 182 Z';
+const cheeks=(y)=>ink(`M 170 ${y+12} L 182 ${y+30} M 250 ${y+12} L 238 ${y+30}`,2.6,.6);
+const teethRow=(y,h)=>poly([[176,y],[184,y+h],[192,y],[200,y+h+2],[208,y],[216,y+h+2],[224,y],[232,y+h],[244,y]],'#e8e2d2','stroke-width="3"');
+const HEADDRAW={
+  dome:{d:D_DOME,ey:138,top:78,bot:208,front:c=>cheeks(138)+ink('M 196 182 Q 210 190 224 182',2.4,.5)},
+  horned:{d:D_DOME,ey:140,top:78,bot:208,back:c=>shaded(polyD([[174,104],[142,40],[196,90]]),c.secondary,'',.5)+shaded(polyD([[246,104],[278,40],[224,90]]),c.secondary,'',.5)+ink('M 160 70 L 172 92 M 260 70 L 248 92',2.2,.5),front:c=>cheeks(140)},
+  finned:{d:D_DOME,ey:140,top:78,bot:208,back:c=>shaded(polyD([[196,92],[210,22],[226,92]]),c.secondary,'',.5)+shaded(polyD([[166,122],[118,100],[168,160]]),c.secondary,'',.5)+shaded(polyD([[254,122],[302,100],[252,160]]),c.secondary,'',.5)+ink('M 204 80 L 210 40 M 150 112 L 162 134 M 270 112 L 258 134',2.2,.5),front:c=>cheeks(140)},
+  mandible:{d:D_WIDE,ey:134,top:88,bot:202,back:c=>limbs([['M 186 94 Q 170 52 146 42',5],['M 234 94 Q 250 52 274 42',5]],c.secondary)+circ(146,42,7,c.accent,glow())+circ(274,42,7,c.accent,glow()),
+    front:c=>shaded('M 188 186 L 170 206 L 194 220 L 202 204 L 200 190 Z',c.secondary,'',.4)+shaded('M 232 186 L 250 206 L 226 220 L 218 204 L 220 190 Z',c.secondary,'',.4)+cheeks(134)},
+  shard:{d:D_SHARD,ey:140,top:78,bot:204,front:c=>ink('M 210 78 L 210 202 M 178 96 L 210 142 L 242 96 M 170 150 L 210 142 L 250 150',2.4,.45)+line('M 186 100 L 206 86','#fff',3,'opacity=".5"')},
+  visor:{d:D_BOX,ey:138,top:86,bot:208,front:c=>shaded('M 170 122 L 210 112 L 250 122 L 250 154 L 210 164 L 170 154 Z','#0d1016','',.4)+line('M 178 158 Q 210 150 242 158',c.accent,3,'opacity=".8"')+cheeks(138)},
+  flame:{d:D_BOX,ey:142,top:86,bot:208,back:c=>shaped(c,'M 166 124 L 150 70 L 182 78 L 186 30 L 210 60 L 230 16 L 240 72 L 272 54 L 254 124 Z',c.secondary,'M 184 118 L 178 84 L 198 90 L 206 56 L 216 86 L 236 66 L 236 118 Z',c.accent)+kirby(210,70,70,52,14,3,.7,c.accent),front:c=>cheeks(142)},
+  bud:{d:D_DOME,ey:140,top:78,bot:208,back:c=>shaded(ellD(176,92,22,40),c.secondary,'transform="rotate(-38 176 92)"',.5)+shaded(ellD(244,92,22,40),c.secondary,'transform="rotate(38 244 92)"',.5)+shaded(ellD(210,72,20,42),c.secondary,'',.5)+ink('M 210 40 L 210 100 M 176 60 L 190 108 M 244 60 L 230 108',2.4,.5),front:c=>cheeks(140)},
+  skull:{d:D_DOME,ey:134,top:78,bot:208,front:c=>shape('M 204 150 L 210 168 L 216 150 Z',shade(c.primary,-.6),'stroke-width="3"')+ink('M 164 150 Q 182 168 194 160 M 256 150 Q 238 168 226 160',3,.6)+teethRow(176,16)+ink('M 170 176 L 176 160 M 250 176 L 244 160',2.4,.6)},
+  mound:{d:D_MOUND,ey:158,top:104,bot:214,front:c=>circ(170,190,6,shade(c.primary,.25),'stroke="none"')+circ(246,176,5,shade(c.primary,.25),'stroke="none"')+ink('M 160 200 L 164 222 M 258 202 L 254 226',3,.6)},
+  jaws:{d:D_JAWS,ey:130,top:86,bot:214,front:c=>ink('M 166 116 Q 188 104 206 114 M 254 116 Q 232 104 214 114',4,.9)+poly([[160,178],[172,198],[182,180],[194,204],[206,182],[218,204],[230,180],[240,198],[250,178],[262,186],[236,214],[184,214],[150,186]],'#e8e2d2','stroke-width="3"')+cheeks(130)},
+  cranium:{d:'M 148 146 Q 146 50 210 46 Q 274 50 272 146 L 258 184 L 228 212 L 192 212 L 162 184 Z',ey:152,top:46,bot:212,ek:2,front:c=>ink('M 210 50 L 210 104 M 168 72 Q 186 96 182 116 M 252 72 Q 234 96 238 116',2.4,.35)+ink('M 174 164 L 184 178 M 246 164 L 236 178 M 196 192 Q 210 200 224 192',2.6,.6)},
+  maw:{d:'M 148 130 Q 158 84 210 82 Q 262 84 272 130 L 288 178 Q 210 230 132 178 Z',ey:126,top:82,bot:224,front:c=>ink('M 166 112 Q 188 100 206 110 M 254 112 Q 232 100 214 110',4,.9)+poly([[148,174],[160,196],[172,176],[184,204],[198,178],[212,206],[226,178],[240,204],[252,176],[264,196],[276,174],[282,184],[210,228],[138,184]],'#e8e2d2','stroke-width="3"')+ink('M 150 140 L 160 156 M 160 136 L 170 154 M 170 132 L 180 152 M 270 140 L 260 156 M 260 136 L 250 154 M 250 132 L 240 152',3.2,.85)+`<path d="M 150 182 Q 210 214 270 182 L 270 190 Q 210 224 150 190 Z" fill="${shade(c.primary,-.7)}" opacity=".85"/>`},
+  antenna:{d:D_DOME,ey:140,top:78,bot:208,back:c=>limbs([['M 192 92 Q 170 40 142 34',5],['M 228 92 Q 250 40 278 34',5]],c.secondary)+circ(142,34,9,c.accent,glow())+circ(278,34,9,c.accent,glow())+kirby(142,34,22,22,5,11,.7,c.accent)+kirby(278,34,22,22,5,12,.7,c.accent),front:c=>cheeks(140)},
+};
+function shaped(c,d1,f1,d2,f2){return shaded(d1,f1,glow(),.5)+shape(d2,f2,'stroke="none"')}
+function eye(x,y,k,style,c){
+  const rx=12*k,ry=15*k,s=x<208?-1:x>212?1:0;
+  const alm=`M ${x-rx*1.1} ${y+ry*.05} Q ${x} ${y-ry*1.25} ${x+rx*1.1} ${y+ry*.05} Q ${x} ${y+ry*1.05} ${x-rx*1.1} ${y+ry*.05} Z`;
+  const brow=s===0?ink(`M ${x-rx*1.3} ${y-ry*1.5} L ${x} ${y-ry*1.15} L ${x+rx*1.3} ${y-ry*1.5}`,4.5,.95):ink(`M ${x-s*rx*1.4} ${y-ry*1.7} L ${x+s*rx*1.1} ${y-ry*1.1}`,4.5,.95);
+  const hl=`<ellipse cx="${x-rx*.4}" cy="${y-ry*.45}" rx="${rx*.28}" ry="${ry*.18}" fill="#fff" opacity=".8"/>`;
+  switch(style){
+    case 'slit':return shape(alm,c.eye,'stroke-width="4"')+ell(x,y,rx*.2,ry*.78,INK,'stroke="none"')+hl+brow;
+    case 'pupil':return shape(alm,'#f1ede4','stroke-width="4"')+circ(x,y+ry*.1,rx*.6,c.eye,'stroke="none"')+circ(x,y+ry*.1,rx*.3,INK,'stroke="none"')+hl+brow;
+    case 'compound':return shape(alm.replace(/Q/g,'Q'),c.eye,'stroke-width="4"')+`<path d="${alm}" fill="url(#dots${U})" opacity=".8"/>`+ink(`M ${x-rx} ${y-ry*.45} L ${x+rx} ${y+ry*.45} M ${x-rx} ${y+ry*.45} L ${x+rx} ${y-ry*.45} M ${x} ${y-ry} L ${x} ${y+ry}`,1.8,.4)+brow;
+    case 'glow':return `<path d="${alm}" fill="${c.eye}" ${glow()}/>`+shape(alm,c.eye,'stroke="none"')+`<ellipse cx="${x}" cy="${y}" rx="${rx*.45}" ry="${ry*.4}" fill="#fff" opacity=".55"/>`+brow;
+    default:return shape(alm,c.eye,'stroke-width="4"')+`<path d="${alm}" fill="${shade(c.eye,-.45)}" opacity=".5" transform="translate(0 ${ry*.55})"/>`+shape(alm,'none','stroke-width="4"')+hl+brow;
+  }
+}
+function drawEyes(st,c,hd){const k=(EYE_K[st.eyes]||1)*(hd.ek||1);return (EYE_POS[st.eyes]||EYE_POS[2]).map(([dx,dy])=>eye(210+dx,hd.ey+dy,k,st.parts.eyes,c)).join('')}
+
+/* ---- torsos: angular, with drawn musculature ---- */
+const D_BRAWL='M 138 212 L 172 194 L 210 190 L 248 194 L 282 212 L 268 292 L 246 340 L 210 346 L 174 340 L 152 292 Z';
+const pecs=()=>ink('M 164 238 Q 186 270 208 250 M 256 238 Q 234 270 212 250 M 210 262 L 210 332 M 190 284 q 8 -5 16 0 M 214 284 q 8 -5 16 0 M 192 304 q 8 -5 14 0 M 214 304 q 8 -5 14 0 M 196 322 q 6 -4 12 0 M 212 322 q 6 -4 12 0',2.8,.7)+ink('M 152 292 Q 172 272 176 246 M 268 292 Q 248 272 244 246',2.4,.5);
+const TORSODRAW={
+  brawler:{d:D_BRAWL,neck:true,front:c=>pecs()},
+  slim:{d:'M 164 208 L 210 192 L 256 208 L 250 288 L 234 342 L 186 342 L 170 288 Z',neck:true,front:c=>ink('M 180 248 Q 195 262 210 252 Q 225 262 240 248 M 184 272 L 200 280 M 236 272 L 220 280 M 186 292 L 198 298 M 234 292 L 222 298 M 210 262 L 210 326',2.6,.65)},
+  thorax:{d:'M 158 214 L 210 190 L 262 214 L 274 250 L 256 274 L 270 312 L 240 338 L 210 346 L 180 338 L 150 312 L 164 274 L 146 250 Z',neck:true,front:c=>ink('M 164 266 Q 210 288 256 266 M 170 306 Q 210 326 250 306 M 210 214 L 210 338',3,.7)+`<path d="M 164 266 Q 210 288 256 266 L 258 276 Q 210 300 162 276 Z" fill="url(#dots${U})" opacity=".8"/>`},
+  mass:{d:'M 140 226 Q 168 196 210 206 Q 254 192 284 226 Q 302 282 276 332 Q 250 352 210 346 Q 164 352 144 326 Q 118 282 140 226 Z',front:c=>circ(244,250,8,shade(c.primary,.25),'stroke="none"')+circ(170,290,6,shade(c.primary,.25),'stroke="none"')+ink('M 150 300 Q 160 330 150 350 M 266 290 Q 280 318 270 346',3,.55)},
+  crystal:{d:'M 150 212 L 210 196 L 270 212 L 262 282 L 234 342 L 186 342 L 158 282 Z',neck:true,front:c=>ink('M 210 196 L 210 342 M 150 212 L 210 282 L 270 212 M 158 282 L 210 282 L 262 282',2.4,.4)+line('M 172 222 L 200 212','#fff',3,'opacity=".45"')},
+  chassis:{d:'M 156 204 L 164 198 L 256 198 L 264 204 L 262 300 L 244 340 L 176 340 L 158 300 Z',neck:true,front:c=>line('M 170 232 L 250 232 M 172 302 L 248 302 M 210 302 L 210 338',c.secondary,4)+ink('M 166 246 L 254 246 M 166 262 L 170 262 M 250 262 L 254 262',2,.5)+circ(210,266,16,c.accent,glow())+kirby(210,266,30,30,8,5,.7,c.accent)},
+  core:{d:D_BRAWL,neck:true,front:c=>pecs()+line('M 180 230 L 198 262 L 186 296 M 236 224 L 222 258 L 240 292 M 210 248 L 212 282',c.accent,4,glow())+kirby(210,268,60,56,12,7,.55,c.accent)},
+  trunk:{d:'M 168 206 L 210 192 L 252 206 L 262 300 L 244 342 L 176 342 L 158 300 Z',neck:true,front:c=>ink('M 184 222 Q 190 280 186 332 M 232 218 Q 226 278 234 334 M 206 240 Q 212 270 208 300 M 170 260 L 180 266 M 250 256 L 240 262',3,.55)},
+  scaled:{d:D_BRAWL,neck:true,front:c=>shaded('M 180 230 L 210 220 L 240 230 L 236 302 L 210 336 L 184 302 Z',c.secondary,'',.5)+ink('M 184 254 L 236 254 M 185 278 L 235 278 M 190 302 L 230 302',2.6,.5)+ink('M 152 292 Q 172 272 176 246 M 268 292 Q 248 272 244 246',2.4,.5)},
+  haunch:{d:'M 118 300 Q 108 258 150 244 Q 190 220 250 228 Q 302 234 326 266 L 334 318 Q 322 356 284 362 L 150 366 Q 112 354 118 300 Z',beast:true,front:c=>ink('M 150 250 Q 160 300 150 340 M 180 244 Q 196 300 186 350 M 236 236 Q 252 290 246 350 M 292 250 Q 310 290 300 330',2.8,.6)+ink('M 124 270 L 112 258 M 134 254 L 126 240 M 150 244 L 146 230 M 300 244 L 306 232 M 318 258 L 330 250',3,.85)+ink('M 218 300 q 10 -6 20 0 M 222 318 q 10 -6 20 0 M 228 336 q 8 -5 16 0',2.4,.5)},
+  carapace:{d:'M 116 300 L 128 256 L 170 236 L 250 232 L 310 248 L 332 282 L 330 322 L 300 362 L 150 366 L 118 348 Z',beast:true,front:c=>ink('M 128 256 L 134 350 M 170 236 L 176 362 M 250 232 L 252 364 M 310 248 L 302 360 M 120 300 L 330 300',2.8,.6)+`<path d="M 128 256 L 170 236 L 250 232 L 310 248 L 332 282 L 120 300 Z" fill="url(#dots${U})" opacity=".7"/>`},
+  lean:{d:'M 120 306 Q 128 258 176 248 Q 214 236 262 242 Q 312 248 328 284 L 326 322 Q 304 352 272 352 L 160 356 Q 118 348 120 306 Z',beast:true,front:c=>ink('M 150 262 Q 166 296 158 340 M 196 250 Q 206 290 198 346 M 248 246 Q 262 290 256 346 M 150 300 q 12 -6 24 0 M 180 304 q 12 -6 24 0 M 212 306 q 12 -6 24 0',2.6,.55)},
+  shell:{d:'M 144 236 L 176 196 L 244 196 L 276 236 L 270 302 L 244 342 L 176 342 L 150 302 Z',neck:true,front:c=>ink('M 150 262 Q 210 240 270 262 M 152 296 Q 210 276 268 296 M 210 196 L 210 340',3,.6)+`<path d="M 150 262 Q 210 240 270 262 L 268 296 Q 210 276 152 296 Z" fill="url(#dots${U})" opacity=".6"/>`},
+};
+
+/* ---- limbs ---- */
+function armPts(s,p){const sy=[214,262,298][p];return {s,p,sx:210+s*52,sy,ex:210+s*(100-10*p),ey:sy+46,hx:210+s*(112-8*p),hy:sy+108-14*p}}
+const isBeast=st=>(FORMS[st.form]||{}).layout==='beast';
+function armPtsBeast(s){return s===1?{s:1,p:0,sx:268,sy:272,ex:300,ey:306,hx:322,hy:350}:{s:-1,p:1,sx:250,sy:266,ex:282,ey:300,hx:306,hy:344}}
+function geom(st){const arms=[];if(isBeast(st)){if(st.arms>0)arms.push(armPtsBeast(-1),armPtsBeast(1))}else for(let p=0;p<st.arms/2;p++)for(const s of [-1,1])arms.push(armPts(s,p));return {arms}}
+function claws(x,y,ux,uy,col,len){let o='';for(const a of [-32,0,32]){const r=a*Math.PI/180,cx=ux*Math.cos(r)-uy*Math.sin(r),cy=ux*Math.sin(r)+uy*Math.cos(r),nx=-cy,ny=cx;o+=shaded(polyD([[x+nx*7,y+ny*7],[x+cx*len,y+cy*len],[x-nx*7,y-ny*7]]),col,'stroke-width="4"',.35)}return o}
+function pincer(x,y,ux,uy,nx,ny,col){return shaded(polyD([[x+nx*4,y+ny*4],[x+nx*18+ux*8,y+ny*18+uy*8],[x+ux*30+nx*6,y+uy*30+ny*6],[x+ux*10,y+uy*10]]),col,'',.4)+shaded(polyD([[x-nx*4,y-ny*4],[x-nx*18+ux*8,y-ny*18+uy*8],[x+ux*30-nx*6,y+uy*30-ny*6],[x+ux*10,y+uy*10]]),col,'',.4)}
+function rock(x,y,sc=1){const p=[[-18,-6],[-8,-28],[14,-22],[20,2],[4,12]].map(([a,b])=>[x+a*sc,y+b*sc]);return shaded(polyD(p),ROCK,'',.5)+line(`M ${x-8*sc} ${y-28*sc} L ${x+2*sc} ${y-4*sc} L ${x+20*sc} ${y+2*sc}`,ROCK2,2.5,'opacity=".8"')}
+function fist(hx,hy,r,col){return shaded(circD(hx,hy,r),col,'',.6)+ink(`M ${hx-r*.55} ${hy-r*.35} q ${r*.28} -${r*.3} ${r*.55} 0 q ${r*.28} -${r*.3} ${r*.55} 0 M ${hx-r*.3} ${hy+r*.4} q ${r*.3} ${r*.25} ${r*.6} 0`,2.6,.7)}
+function muscle(sx,sy,ex,ey,w,col){const mx=sx+(ex-sx)*.45,my=sy+(ey-sy)*.45,ang=Math.atan2(ey-sy,ex-sx)*180/Math.PI;return shaded(ellD(mx,my,w*.78,w*.56),col,`transform="rotate(${ang} ${mx} ${my})"`,.45)}
+function drawArm(a,variant,c,alts,enh){
+  let col=c.primary,v=variant;
+  if(alts.includes('cyberarm')&&a.s===1&&a.p===0){v='mech';col='#6f7787'}
+  const {sx,sy,ex,ey,hx,hy,s}=a,dx=hx-ex,dy=hy-ey,L=Math.hypot(dx,dy),ux=dx/L,uy=dy/L,nx=-uy,ny=ux;
+  const d=`M ${sx} ${sy} L ${ex} ${ey} L ${hx} ${hy}`;let o='';
+  const striae=(w)=>ink(`M ${ex+ux*18+nx*w*.25} ${ey+uy*18+ny*w*.25} L ${ex+ux*52+nx*w*.1} ${ey+uy*52+ny*w*.1} M ${ex+ux*26-nx*w*.2} ${ey+uy*26-ny*w*.2} L ${ex+ux*48-nx*w*.1} ${ey+uy*48-ny*w*.1}`,2.2,.55);
+  switch(v){
+    case 'brawler':o+=limb(d,28,col)+muscle(sx,sy,ex,ey,28,col)+striae(28)+fist(hx,hy,20,col);break;
+    case 'claw':o+=limb(d,18,col)+striae(18)+claws(hx,hy,ux,uy,c.secondary,28);break;
+    case 'tentacle':o+=limbs([[`M ${sx} ${sy} C ${ex} ${ey}, ${ex} ${ey+30}, ${hx} ${hy}`,22],[`M ${hx} ${hy} q ${s*16} 18 ${-s*10} 30`,12]],col)+circ(ex-s*4,ey+8,4,shade(col,-.4),'stroke="none"')+circ(hx-s*4,hy-12,4,shade(col,-.4),'stroke="none"')+circ(ex-s*2,ey+22,3,shade(col,-.4),'stroke="none"');break;
+    case 'blade':o+=limb(`M ${sx} ${sy} L ${ex} ${ey}`,18,col)+muscle(sx,sy,ex,ey,18,col)+shaded(polyD([[ex+nx*14,ey+ny*14],[ex+ux*124,ey+uy*124],[ex-nx*14,ey-ny*14]]),c.secondary,'',.5)+line(`M ${ex} ${ey} L ${ex+ux*100} ${ey+uy*100}`,'#fff',2,'opacity=".5"');break;
+    case 'crystal':o+=limb(d,22,col)+ink(`M ${sx+(ex-sx)*.5} ${sy+(ey-sy)*.5} L ${ex} ${ey} L ${ex+ux*30} ${ey+uy*30}`,2.2,.45)+shaded(polyD([[hx+nx*16,hy+ny*16],[hx+ux*30,hy+uy*30],[hx-nx*16,hy-ny*16],[hx-ux*14,hy-uy*14]]),shade(col,.35),'',.5);break;
+    case 'mech':o+=limb(d,22,col)+shaded(circD(sx,sy,11),c.secondary,'',.4)+shaded(circD(ex,ey,12),c.secondary,'',.4)+ink(`M ${ex+ux*20} ${ey+uy*20} L ${ex+ux*44} ${ey+uy*44}`,2.2,.5)+pincer(hx,hy,ux,uy,nx,ny,col);break;
+    case 'vine':{const ang=Math.atan2(uy,ux)*180/Math.PI;o+=limb(`M ${sx} ${sy} Q ${ex+s*12} ${ey-24} ${ex} ${ey} T ${hx} ${hy}`,14,col)+shaded(ellD(hx+ux*14,hy+uy*14,20,10),c.secondary,`transform="rotate(${ang} ${hx+ux*14} ${hy+uy*14})"`,.4)+ink(`M ${hx} ${hy} L ${hx+ux*28} ${hy+uy*28}`,2,.5);break}
+    case 'spindly':o+=limb(d,9,col)+circ(ex,ey,6,col,'stroke-width="4"')+[[-34,0],[0,0],[34,0]].map(([a])=>{const r=a*Math.PI/180,cx=ux*Math.cos(r)-uy*Math.sin(r),cy=ux*Math.sin(r)+uy*Math.cos(r);return limb(`M ${hx} ${hy} L ${hx+cx*22} ${hy+cy*22}`,5,col)+circ(hx+cx*24,hy+cy*24,5,c.secondary,'stroke-width="3"')}).join('');break;
+    case 'insect':o+=limb(d,10,col)+circ(ex,ey,7,col)+shaded(polyD([[hx+nx*6,hy+ny*6],[hx+ux*24,hy+uy*24],[hx-nx*6,hy-ny*6]]),c.secondary,'stroke-width="4"',.3);break;
+    case 'flame':o+=limb(d,24,col)+muscle(sx,sy,ex,ey,24,col)+shape(polyD([[hx-16,hy-8],[hx-26,hy-36],[hx-6,hy-22],[hx,hy-48],[hx+8,hy-22],[hx+26,hy-36],[hx+16,hy-8]]),c.secondary,'stroke="none" '+glow())+kirby(hx,hy-26,30,26,8,a.s*3+a.p,.6,c.accent)+fist(hx,hy,19,col);break;
+  }
+  const thin=v==='insect'||v==='tentacle'||v==='vine'||v==='spindly';
+  if(enh.includes('plating'))o+=limb(mid(sx,sy,ex,ey),thin?10:20,c.secondary);
+  if(alts.includes('plates')&&!thin)o+=limb(mid(ex,ey,hx,hy,.25,.65),16,BONE);
+  if(enh.includes('rockarmor')&&a.p===0)o+=rock(sx,sy-6,.9)+(v==='brawler'||v==='flame'?rock(hx,hy,.8):'');
+  if(alts.includes('biolum'))o+=`<circle cx="${ex}" cy="${ey}" r="4" fill="${c.accent}" ${glow()}/><circle cx="${(sx+ex)/2}" cy="${(sy+ey)/2}" r="3.5" fill="${c.accent}" ${glow()}/>`;
+  return o;
+}
+function drawLegs(st,c,enh){
+  const v=st.parts.legs,n=st.legs,col=c.primary;let o='';
+  if(n===0||n===1){
+    if(v==='wisp')return shaded('M 168 330 L 192 400 L 150 470 L 200 440 L 210 482 L 220 440 L 270 470 L 228 400 L 252 330 Z',col)+shape('M 190 335 L 200 400 L 180 450 L 210 430 L 212 460 L 214 430 L 240 450 L 222 400 L 230 335 Z',c.accent,'stroke="none" opacity=".85"')+kirby(210,450,70,40,12,9,.6,c.accent);
+    if(v==='levitate')return ell(210,468,72,12,'none',`stroke="${c.accent}" stroke-width="4" opacity=".6"`)+ell(210,482,44,8,'none',`stroke="${c.accent}" stroke-width="3" opacity=".4"`)+kirby(210,470,90,16,14,4,.75,c.accent);
+    if(v==='puddle')return shaded('M 170 330 Q 160 400 140 440 L 280 440 Q 260 400 250 330 Z',col)+shaded('M 110 450 Q 120 420 160 430 Q 180 405 210 420 Q 240 400 262 428 Q 300 418 312 452 Q 320 482 280 486 Q 250 496 210 490 Q 160 496 130 486 Q 100 480 110 450 Z',col)+circ(150,462,6,shade(col,.3),'stroke="none"')+circ(272,470,5,shade(col,.3),'stroke="none"')+ink('M 120 470 Q 130 478 150 480 M 290 462 Q 296 472 288 480',2.4,.5);
+    if(v==='serpent')return limbs([['M 210 320 C 250 380, 120 400, 130 450',52],['M 130 450 C 140 500, 300 500, 330 440',38],['M 330 440 C 345 410, 330 400, 318 396',22]],col)+line('M 150 476 q 50 18 130 -4',c.secondary,6,'opacity=".9"')+line('M 232 356 q -40 10 -70 40',c.secondary,5,'opacity=".7"')+ink('M 160 440 q 10 -8 24 -8 M 200 480 q 12 6 30 2',2.4,.5);
+    if(v==='roots')return limbs([['M 195 330 Q 170 400 120 470',18],['M 210 330 Q 215 410 200 478',16],['M 225 330 Q 250 400 300 472',18],['M 205 330 Q 180 420 160 480',10],['M 218 330 Q 240 430 250 482',10],['M 120 470 q -20 6 -30 18',8],['M 300 472 q 20 4 28 16',8]],col);
+    return '';
+  }
+  if(isBeast(st))return beastLegs(st,c,enh,'far')+beastLegs(st,c,enh,'near');
+  if(v==='insect'){const per=n/2;for(let i=per-1;i>=0;i--)for(const s of [-1,1])o+=insectLeg(s,i,col,c);return o}
+  if(n===4)for(const s of [-1,1])o+=leg(s,v,shade(col,-.25),c,enh,30);
+  for(const s of [-1,1])o+=leg(s,v,col,c,enh,0);
+  return o;
+}
+const LEGW={stout:30,digitigrade:22,crystal:24,mech:24,vine:14,flipper:24,spindly:11};
+function foot(v,s,ax,ay,kx,ky,col,c){
+  switch(v){
+    case 'stout':return shaded(ellD(ax+s*10,ay+10,26,13),col,'',.5)+ink(`M ${ax+s*18} ${ay+4} q ${s*3} 6 0 12 M ${ax+s*28} ${ay+6} q ${s*3} 5 0 10`,2.6,.55);
+    case 'digitigrade':return claws(ax,ay+6,s*.95,.3,c.secondary,26)+shaded(circD(ax,ay+4,12),col,'',.4);
+    case 'crystal':return shaded(polyD([[ax-20,ay+2],[ax,ay-12],[ax+20,ay+2],[ax+s*12,ay+18],[ax-s*8,ay+16]]),shade(col,.35),'',.5);
+    case 'mech':return shaded(circD(kx,ky,12),c.secondary,'',.4)+shaded(ellD(ax+s*8,ay+8,24,12),c.secondary,'',.5)+circ(ax,ay+8,5,c.accent,'stroke="none"');
+    case 'flipper':return shaded(polyD([[ax-6,ay-6],[ax+s*44,ay+2],[ax+s*40,ay+16],[ax-s*6,ay+16],[ax-s*12,ay+6]]),c.secondary,'',.4)+ink(`M ${ax+s*10} ${ay} L ${ax+s*30} ${ay+10} M ${ax+s*6} ${ay+8} L ${ax+s*24} ${ay+14}`,2,.4);
+    case 'spindly':return [[-30,0],[0,0],[30,0]].map(([a])=>{const r=a*Math.PI/180,ux=s*.9,uy=.42,cx=ux*Math.cos(r)-uy*Math.sin(r),cy=ux*Math.sin(r)+uy*Math.cos(r);return limb(`M ${ax} ${ay} L ${ax+cx*22} ${ay+cy*22}`,5,col)+circ(ax+cx*24,ay+cy*24,5,c.secondary,'stroke-width="3"')}).join('');
+  }
+  return '';
+}
+function beastLegs(st,c,enh,side){
+  const v=st.parts.legs,near=side==='near',col=near?c.primary:shade(c.primary,-.28),w=(LEGW[v]||24)*(near?1:.9),dx=near?0:-16;let o='';
+  const legsPts=[{hx:152,hy:306,kx:124,ky:386,ax:150,ay:454},{hx:282,hy:300,kx:294,ky:380,ax:288,ay:454}];
+  for(const L of legsPts){const hx=L.hx+dx,kx=L.kx+dx,ax=L.ax+dx;
+    if(v==='vine')o+=limbs([[`M ${hx} ${L.hy} Q ${kx} ${L.ky} ${ax} ${L.ay}`,w],[`M ${ax} ${L.ay} q -14 12 -20 22`,8],[`M ${ax} ${L.ay} q 4 14 2 24`,8],[`M ${ax} ${L.ay} q 18 8 26 18`,8]],col);
+    else o+=limb(`M ${hx} ${L.hy} L ${kx} ${L.ky} L ${ax} ${L.ay}`,w,col);
+    if(v==='stout'||v==='digitigrade')o+=muscle(hx,L.hy,kx,L.ky,w,col);
+    o+=foot(v,1,ax,L.ay,kx,L.ky,col,c);
+    if(enh.includes('plating'))o+=limb(mid(kx,L.ky,ax,L.ay),w*.7,c.secondary);
+    if(enh.includes('rockarmor')&&near)o+=rock(kx,L.ky,.7);
+  }
+  return o;
+}
+function insectLeg(s,i,col,c){const hy=318+i*16,hx=210+s*(22+i*4),kx=210+s*(86+i*8),ky=346+i*22,fx=210+s*(118-i*26),fy=478;return limb(`M ${hx} ${hy} L ${kx} ${ky} L ${fx} ${fy}`,10,col)+circ(kx,ky,7,col)+shaded(polyD([[fx-6,fy-4],[fx+s*14,fy+6],[fx-s*2,fy+8]]),c.secondary,'stroke-width="3"',.3)}
+function leg(s,v,col,c,enh,off){
+  const hx=210+s*(26+off),hy=326;let kx,ky,ax,ay;
+  if(v==='digitigrade'){kx=210+s*(14+off);ky=396;ax=210+s*(46+off);ay=462}else{kx=210+s*(32+off);ky=400;ax=210+s*(38+off);ay=466}
+  const w=LEGW[v]||24;let o='';
+  if(v==='vine')o+=limbs([[`M ${hx} ${hy} Q ${kx+s*16} ${ky} ${ax} ${ay}`,w],[`M ${ax} ${ay} q ${-s*14} 12 ${-s*20} 22`,8],[`M ${ax} ${ay} q ${s*4} 14 ${s*2} 24`,8],[`M ${ax} ${ay} q ${s*18} 8 ${s*26} 18`,8]],col);
+  else o+=limb(`M ${hx} ${hy} L ${kx} ${ky} L ${ax} ${ay}`,w,col);
+  if(v==='stout'||v==='digitigrade')o+=muscle(hx,hy,kx,ky,w,col)+ink(`M ${kx+s*4} ${ky+16} L ${ax+s*2} ${ay-12}`,2.2,.5);
+  o+=foot(v,s,ax,ay,kx,ky,col,c);
+  if(enh.includes('plating'))o+=limb(mid(kx,ky,ax,ay),w*.7,c.secondary);
+  if(enh.includes('rockarmor'))o+=rock(kx,ky,.7);
+  return o;
+}
+function drawTail(st,c){
+  const v=st.parts.tail,col=c.primary,d1='M 222 322 C 290 350, 330 330, 350 280',d2='M 350 280 C 362 252, 350 236, 330 232';
+  switch(v){
+    case 'spiked':return limbs([[d1,30],[d2,20]],col)+shaded(polyD([[262,340],[270,310],[280,340]]),c.secondary,'',.3)+shaded(polyD([[296,340],[306,308],[316,338]]),c.secondary,'',.3)+shaded(polyD([[326,318],[344,292],[344,322]]),c.secondary,'',.3)+shaded(circD(330,232,16),col,'',.5)+poly([[318,222],[310,196],[328,218]],c.secondary,'stroke-width="4"')+poly([[338,222],[346,196],[328,218]],c.secondary,'stroke-width="4"');
+    case 'fin':return limbs([[d1,26],[d2,18]],col)+shaded(polyD([[330,232],[300,200],[345,210],[372,196],[356,240],[362,264]]),c.secondary,'',.5)+ink('M 332 232 L 344 212 M 336 236 L 356 230',2.4,.45);
+    case 'whip':return limbs([[d1,16],[d2,10],['M 330 232 C 310 228, 300 250, 320 258',6]],col)+ink('M 270 338 L 274 350 M 300 342 L 302 352 M 330 324 L 338 330',2,.5);
+    case 'stinger':return limbs([[d1,24],[d2,16]],col)+shaded(circD(330,232,16),col,'',.5)+shaded(polyD([[322,222],[294,190],[338,228]]),c.secondary,'',.4)+ink('M 268 340 L 272 348 M 298 342 L 300 352',2,.5);
+  }
+  return '';
+}
+function drawWings(st,c){
+  const v=st.parts.wings;let o='';
+  for(const s of [-1,1]){const x=a=>210+s*a;
+    switch(v){
+      case 'insect':o+=ell(x(100),178,62,26,c.accent,`fill-opacity=".45" transform="rotate(${-s*28} ${x(100)} 178)"`)+ell(x(90),238,48,20,c.accent,`fill-opacity=".45" transform="rotate(${s*18} ${x(90)} 238)"`)+ink(`M ${x(50)} 210 L ${x(150)} 150 M ${x(50)} 216 L ${x(130)} 252 M ${x(80)} 196 L ${x(140)} 178 M ${x(70)} 236 L ${x(120)} 240`,2,.45);break;
+      case 'bat':o+=shaded(polyD([[x(44),212],[x(150),104],[x(180),178],[x(160),172],[x(178),240],[x(150),224],[x(130),284],[x(80),250]]),c.secondary,'',.8)+ink(`M ${x(46)} 214 L ${x(150)} 108 M ${x(46)} 214 L ${x(160)} 172 M ${x(46)} 214 L ${x(150)} 224`,3,.6);break;
+      case 'energy':o+=shape(polyD([[x(44),212],[x(140),92],[x(162),176],[x(192),148],[x(174),248],[x(120),276]]),c.accent,'stroke="none" opacity=".85" '+glow())+shape(polyD([[x(52),212],[x(130),120],[x(150),180],[x(160),170],[x(150),236],[x(116),256]]),'#fff','stroke="none" opacity=".3"')+kirby(x(130),190,80,90,14,s+20,.7,c.accent);break;
+      case 'leaf':o+=shaded(ellD(x(110),190,72,30),c.secondary,`transform="rotate(${-s*30} ${x(110)} 190)"`,.8)+ink(`M ${x(50)} 214 L ${x(170)} 156 M ${x(80)} 200 L ${x(96)} 170 M ${x(110)} 186 L ${x(130)} 158 M ${x(100)} 198 L ${x(118)} 214`,2.4,.5);break;
+    }
+  }
+  return o;
+}
+
+/* ---- defs, overlays, clothing, accessories ---- */
+function defs(st,c){
+  const td=TORSODRAW[st.parts.torso].d,hd=HEADDRAW[st.parts.head].d;let pat='';
+  switch(st.pattern){
+    case 'stripes':pat=`<pattern id="pat${U}" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(-32)"><rect width="11" height="26" fill="${c.secondary}"/></pattern>`;break;
+    case 'spots':pat=`<pattern id="pat${U}" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="9" cy="9" r="7" fill="${c.secondary}"/><circle cx="26" cy="24" r="5" fill="${c.secondary}"/></pattern>`;break;
+    case 'plates':pat=`<pattern id="pat${U}" width="30" height="34" patternUnits="userSpaceOnUse"><polygon points="15,2 27,9 27,24 15,31 3,24 3,9" fill="${c.secondary}" stroke="${INK}" stroke-width="2" stroke-opacity=".5"/></pattern>`;break;
+    case 'cracks':pat=`<pattern id="pat${U}" width="44" height="44" patternUnits="userSpaceOnUse"><path d="M 2 8 L 14 20 L 10 36 M 14 20 L 30 14 L 42 26 M 30 14 L 34 2" fill="none" stroke="${c.secondary}" stroke-width="3.5" stroke-linecap="round"/></pattern>`;break;
+    case 'scales':pat=`<pattern id="pat${U}" width="28" height="22" patternUnits="userSpaceOnUse"><path d="M 0 11 a 14 14 0 0 1 28 0 M -14 22 a 14 14 0 0 1 28 0 M 14 22 a 14 14 0 0 1 28 0" fill="none" stroke="${c.secondary}" stroke-width="3"/></pattern>`;break;
+  }
+  return `<defs>${pat}<clipPath id="tc${U}"><path d="${td}"/></clipPath><clipPath id="hc${U}"><path d="${hd}"/></clipPath>
+  <pattern id="hatch${U}" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(-38)"><rect width="7" height="7" fill="none"/><rect x="0" y="0" width="1.6" height="7" fill="${INK}" opacity=".45"/></pattern>
+  <pattern id="dots${U}" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(22)"><circle cx="3.5" cy="3.5" r="1.9" fill="${INK}" opacity=".55"/></pattern>
+  <filter id="glow${U}" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="aura${U}" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="0" stdDeviation="9" flood-color="${c.accent}" flood-opacity=".9"/></filter>
+  <filter id="grain${U}" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="7" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .22 0" result="g"/><feComposite in="g" in2="SourceGraphic" operator="in" result="gi"/><feBlend in="gi" in2="SourceGraphic" mode="multiply"/></filter>
+  <radialGradient id="aurag${U}"><stop offset="0" stop-color="${c.accent}" stop-opacity=".5"/><stop offset="1" stop-color="${c.accent}" stop-opacity="0"/></radialGradient></defs>`;
+}
+const pat=(st,d)=>st.pattern==='none'?'':`<path d="${d}" fill="url(#pat${U})" stroke="none" opacity=".8"/>`;
+function drawClothing(st,c,td){
+  const clip=`clip-path="url(#tc${U})"`;
+  switch(st.clothing){
+    case 'jumpsuit':return `<g ${clip}><rect x="100" y="188" width="240" height="192" fill="#16151c"/><rect x="198" y="188" width="24" height="192" fill="#e9e6ea"/><path d="M 100 188 h 240 v 192 h -240 z" fill="url(#hatch${U})" opacity=".5"/></g>`+(BT?'':ink('M 150 292 Q 172 272 176 246 M 270 292 Q 248 272 244 246',2.4,.6))+shape(td,'none');
+    case 'armor':if(BT)return shaded('M 130 262 L 176 240 L 250 234 L 306 250 L 316 276 L 128 290 Z',c.secondary,'',.6)+ink('M 176 240 L 174 286 M 250 234 L 250 282 M 140 276 L 310 262',3,.6)+shaded(ellD(300,256,22,14),c.secondary,'',.5);return shaded('M 164 214 L 256 214 L 262 292 L 210 322 L 158 292 Z',c.secondary)+ink('M 210 214 L 210 322 M 176 252 L 244 252 M 168 230 L 252 230',3,.6)+shaded(ellD(156,212,26,16),c.secondary,'',.5)+shaded(ellD(264,212,26,16),c.secondary,'',.5);
+    case 'cloak':if(BT)return shaded('M 236 236 Q 290 232 318 262 L 314 288 Q 280 268 236 272 Z',shade(c.secondary,-.3),'',.5);return shaded('M 150 212 Q 210 236 270 212 L 262 242 Q 210 264 158 242 Z',shade(c.secondary,-.3),'',.5);
+    case 'sash':return `<g ${clip}>`+line(BT?'M 120 250 L 330 340':'M 140 206 L 284 334','#7d1d2b',24)+line('M 140 206 L 284 334',c.accent,4)+`</g>`+shape(td,'none');
+    case 'techsuit':return `<g ${clip}><rect x="100" y="188" width="240" height="192" fill="#1a2029"/><path d="M 100 188 h 240 v 192 h -240 z" fill="url(#dots${U})" opacity=".4"/></g>`+line('M 180 214 L 180 336 M 240 214 L 240 336 M 180 272 L 240 272',c.accent,3,'opacity=".9" '+glow())+circ(210,250,12,c.accent)+kirby(210,250,26,26,6,8,.7,c.accent)+shape(td,'none');
+    case 'tunic':{const y1=BT?300:264,y2=BT?290:240;return `<g ${clip}><polygon points="100,${y1} 340,${y2} 340,380 100,380" fill="${c.secondary}"/><polygon points="100,${y1} 340,${y2} 340,380 100,380" fill="url(#hatch${U})" opacity=".6"/><path d="M 100 ${y1} L 340 ${y2}" fill="none" stroke="${INK}" stroke-width="5"/></g>`+ink(BT?'M 170 320 L 168 356 M 250 316 L 254 356':'M 190 280 L 186 340 M 230 276 L 236 340',2.6,.5)+shape(td,'none')}
+  }
+  return '';
+}
+/* Double-helix emblem: two strands cross twice (top V, middle bulge, bottom V) with rungs between them. */
+function emblem(x,y,s,col){
+  const w=s*.62,N=28,f=n=>n.toFixed(1),px=(fr,sg)=>x+sg*w*Math.cos(2*Math.PI*fr),py=fr=>y-s+2*s*fr;
+  const strand=sg=>{let d='';for(let i=0;i<=N;i++){const fr=i/N;d+=(i?' L ':'M ')+f(px(fr,sg))+' '+f(py(fr))}return d};
+  let o='';
+  for(const fr of [.07,.17,.36,.43,.5,.57,.64,.83,.93]){const a=px(fr,1),b=px(fr,-1);if(Math.abs(a-b)>w*.5)o+=`<path d="M ${f(a)} ${f(py(fr))} L ${f(b)} ${f(py(fr))}" fill="none" stroke="${col}" stroke-width="${f(Math.max(1,s*.2))}" stroke-linecap="round"/>`}
+  const sw=Math.max(1.4,s*.26);
+  o+=`<path d="${strand(-1)}" fill="none" stroke="${col}" stroke-width="${f(sw)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  o+=`<path d="${strand(1)}" fill="none" stroke="#101216" stroke-width="${f(sw*1.9)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  o+=`<path d="${strand(1)}" fill="none" stroke="${col}" stroke-width="${f(sw)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  return o;
+}
+let HT='',BT='';const hw=s=>s&&HT?`<g transform="${HT}">${s}</g>`:s,bw=s=>s&&BT?`<g transform="${BT}">${s}</g>`:s;
+function drawAccessories(st,c,g,hd){
+  let o='',h='';const A=st.accessories;
+  if(A.includes('belt'))o+=shaded('M 160 322 L 260 322 L 258 338 L 162 338 Z','#2a2630','',.4)+shape('M 176 324 h 14 v 12 h -14 z','#45404f','stroke-width="3"')+shape('M 232 324 h 14 v 12 h -14 z','#45404f','stroke-width="3"')+`<rect x="200" y="320" width="20" height="20" rx="3" fill="${c.accent}" stroke="${INK}" stroke-width="3"/>`;
+  if(A.includes('harness'))o+=`<g clip-path="url(#tc${U})">`+line('M 160 210 L 262 324 M 260 210 L 158 324','#2a2630',11)+`</g>`+circ(210,267,9,c.secondary);
+  if(A.includes('scarf'))o+=shaded(ellD(210,206,46,14),c.secondary,'',.5)+shaded('M 238 206 Q 266 230 258 266 Q 248 242 228 224 Z',c.secondary,'',.5);
+  if(A.includes('dial'))o+=circ(210,252,17,'#101216')+`<g ${glow()}>${emblem(210,252,10,c.accent)}</g>`;
+  if(A.includes('badge'))o+=circ(244,226,12,'#101216','stroke="#e9e6ea" stroke-width="3"')+emblem(244,226,6,c.accent);
+  if(A.includes('bracers'))for(const a of g.arms.filter(a=>a.p===0)){const d=mid(a.ex,a.ey,a.hx,a.hy,.35,.75);o+=limb(d,(st.parts.arms==='insect'?12:24),c.secondary)+circ((a.ex+a.hx)/2,(a.ey+a.hy)/2,4,c.accent,'stroke-width="2"')}
+  if(A.includes('goggles')){const y=hd.top+22;h+=line(`M 162 ${y+4} Q 210 ${y-10} 258 ${y+4}`,'#3a2a1a',10)+circ(190,y,12,'#5a4330','stroke-width="4"')+circ(230,y,12,'#5a4330','stroke-width="4"')+circ(190,y,7,'#9fe3ff','stroke="none" opacity=".9"')+circ(230,y,7,'#9fe3ff','stroke="none" opacity=".9"')}
+  if(A.includes('crown')){const t=hd.top;h+=shaded(polyD([[184,t+10],[188,t-16],[198,t+2],[210,t-24],[222,t+2],[232,t-16],[236,t+10]]),'#e2b84a','',.4)+circ(210,t-22,4,'#ff4d6d','stroke-width="2"')}
+  return bw(o)+hw(h);
+}
+function drawAlterations(st,c,g,hd){
+  let o='',h='';const A=st.alterations;const sp=BT?[[-1,186,222],[1,230,216]]:[[-1,158,208],[1,262,208]];
+  if(A.includes('spikes'))for(const [s,x,y] of sp){o+=shaded(polyD([[x-s*12,y+2],[x-s*4,y-34],[x+s*8,y+2]]),BONE,'',.4)+shaded(polyD([[x+s*8,y+4],[x+s*18,y-18],[x+s*22,y+6]]),BONE,'stroke-width="4"',.3)}
+  if(A.includes('crystals')){const col=shade(c.accent,.1);for(const s of [-1,1]){const x=210+s*40,y=214;o+=shaded(polyD([[x-10,y+4],[x-14,y-30],[x+2,y-16],[x+12,y-36],[x+16,y+4]]),col,'',.4)}h+=shaded(polyD([[248,hd.ey-10],[262,hd.ey-44],[268,hd.ey-6]]),col,'stroke-width="4"',.3)}
+  if(A.includes('biolum')){o+=[[190,240],[228,262],[205,302],[176,282],[240,304]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="5" fill="${c.accent}" ${glow()}/>`).join('')+kirby(210,270,60,60,10,13,.5,c.accent);h+=[[186,hd.ey-26],[234,hd.ey-26]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="5" fill="${c.accent}" ${glow()}/>`).join('')}
+  if(A.includes('scars')){const col=shade(c.primary,-.6);h+=line(`M 232 ${hd.ey-26} L 248 ${hd.ey+8} M 236 ${hd.ey-16} L 246 ${hd.ey-18} M 240 ${hd.ey-4} L 250 ${hd.ey-6}`,col,3.2);o+=line('M 174 246 L 196 288 M 178 262 L 188 258 M 184 276 L 194 272',col,3.2)}
+  if(A.includes('plates'))o+=shaded('M 184 226 L 210 216 L 236 226 L 232 264 L 210 276 L 188 264 Z',BONE,'',.5)+ink('M 210 226 L 210 272 M 192 240 L 228 240',2.4,.5);
+  if(A.includes('tusks')){const b=hd.bot;h+=shaded(polyD([[192,b-4],[176,b-44],[202,b-12]]),'#e8e2d2','stroke-width="4"',.35)+shaded(polyD([[228,b-4],[244,b-44],[218,b-12]]),'#e8e2d2','stroke-width="4"',.35)}
+  return bw(o)+hw(h);
+}
+function renderBody(st,c,g,hd,td){
+  const alts=st.alterations,enh=st.enhancements,v=st.parts.arms,beast=isBeast(st);let o='';
+  HT=beast?'translate(88 90)':'';BT=beast?'translate(0 24)':'';
+  if(st.clothing==='cloak')o+=beast?shaded('M 240 238 Q 180 250 140 330 Q 150 420 196 462 Q 230 440 250 372 Q 292 300 320 266 Z',shade(c.secondary,-.3))+ink('M 220 280 Q 200 360 208 440 M 260 270 Q 236 330 236 400',3,.4):shaded('M 150 212 Q 110 330 128 452 Q 210 472 292 452 Q 310 330 270 212 Q 210 234 150 212 Z',shade(c.secondary,-.3))+ink('M 180 250 Q 170 340 176 440 M 240 250 Q 250 340 244 440 M 210 240 L 212 450',3,.4);
+  if(st.accessories.includes('harness'))o+=bw(shaded('M 140 222 h 140 v 64 h -140 z',shade(c.secondary,-.4)));
+  if(st.wings)o+=beast?`<g transform="translate(0 52)">${drawWings(st,c)}</g>`:drawWings(st,c);
+  if(st.tail)o+=beast?`<g transform="translate(-73 -22) scale(-1 1) translate(-420 0)">${drawTail(st,c)}</g>`:drawTail(st,c);
+  for(const a of g.arms.filter(a=>a.p>0).sort((a,b)=>b.p-a.p))o+=drawArm(a,v,c,alts,enh);
+  o+=beast?beastLegs(st,c,enh,'far'):drawLegs(st,c,enh);
+  if(td.neck)o+=shaded('M 186 214 L 192 170 L 228 170 L 234 214 Z',c.primary,'',.5)+ink('M 198 180 L 196 210 M 222 180 L 224 210',2.4,.55);
+  o+=shaded(td.d,c.primary)+pat(st,td.d)+td.front(c);
+  if(enh.includes('veins'))o+=bw(line('M 184 232 L 198 262 L 190 296 L 206 326 M 236 226 L 224 256 L 240 286 M 210 222 L 214 246',c.accent,3.5,glow())+kirby(210,275,56,60,10,17,.6,c.accent));
+  o+=drawClothing(st,c,td.d);
+  if(enh.includes('rockarmor'))o+=bw(shaded(polyD([[186,238],[200,216],[224,220],[238,242],[226,270],[196,268]]),ROCK,'',.5)+line('M 200 216 L 212 244 L 238 242 M 212 244 L 196 268',ROCK2,2.5,'opacity=".8"'));
+  if(beast)o+=beastLegs(st,c,enh,'near');
+  for(const a of g.arms.filter(a=>a.p===0))o+=drawArm(a,v,c,alts,enh);
+  o+=hw((hd.back?hd.back(c):'')+shaded(hd.d,c.primary)+pat(st,hd.d)+(hd.front?hd.front(c):''));
+  if(enh.includes('veins'))o+=hw(line(`M 184 ${hd.ey-22} L 196 ${hd.ey-4} M 236 ${hd.ey-26} L 226 ${hd.ey-6}`,c.accent,3,glow()));
+  o+=hw(drawEyes(st,c,hd));
+  o+=drawAlterations(st,c,g,hd)+drawAccessories(st,c,g,hd);
+  HT='';BT='';
+  return o;
+}
+function alienSVG(st,opts={}){
+  CN=0;const c=st.colors,enh=st.enhancements,hd=HEADDRAW[st.parts.head],td=TORSODRAW[st.parts.torso],g=geom(st);
+  let k=SIZES[st.size].k;if(enh.includes('sizeboost'))k+=.12;
+  const body=renderBody(st,c,g,hd,td);
+  const sw=(isBeast(st)?112:80)*k;
+  let out=defs(st,c)+ell(210,492,sw,11*k,'#000','stroke="none" opacity=".4"')+`<ellipse cx="210" cy="492" rx="${sw}" ry="${11*k}" fill="url(#dots${U})" opacity=".7"/>`;
+  if(enh.includes('aura'))out+=`<ellipse cx="210" cy="300" rx="175" ry="215" fill="url(#aurag${U})"/>`+kirby(210,300,165,205,34,21,.82,c.accent);
+  let inner=body;
+  if(enh.includes('trails'))inner=`<g transform="translate(-48 0)" opacity=".18">${body}</g><g transform="translate(-24 0)" opacity=".38">${body}</g>`+line('M 30 262 L 118 262 M 20 302 L 104 302 M 40 342 L 128 342',c.accent,6,'opacity=".7"')+body;
+  const f=enh.includes('aura')?`filter="url(#aura${U})"`:'';
+  const gr=opts.fx?`filter="url(#grain${U})"`:'';
+  return out+`<g transform="translate(210 500) scale(${k}) translate(-210 -500)" ${f}><g ${gr}>${inner}</g></g>`;
+}
+const svgWrap=(inner,vb,x='')=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" ${x}>${inner}</svg>`;
+function fullSVG(st,uid='m',x='',fx=false){U=uid;const s=svgWrap(alienSVG(st,{fx}),'0 0 420 540',x);U='m';return s}
+function partPreview(slot,id,st){
+  const t={...st,parts:{...st.parts,[slot]:id}};U='p'+slot+id;CN=0;const c=t.colors;let inner=defs(t,c),vb='0 0 420 540';
+  switch(slot){
+    case 'head':{const hd=HEADDRAW[id];inner+=(hd.back?hd.back(c):'')+shaded(hd.d,c.primary)+pat(t,hd.d)+(hd.front?hd.front(c):'')+drawEyes(t,c,hd);vb='110 0 200 230';break}
+    case 'eyes':{const hd=HEADDRAW[t.parts.head];inner+=shaded(hd.d,c.primary)+(hd.front?hd.front(c):'')+drawEyes(t,c,hd);vb=`135 ${hd.ey-55} 150 110`;break}
+    case 'torso':{const td=TORSODRAW[id];inner+=shaded(td.d,c.primary)+pat(t,td.d)+td.front(c);vb=td.beast?'96 206 250 176':'105 170 210 190';break}
+    case 'arms':inner+=isBeast(t)?drawArm(armPtsBeast(1),id,c,[],[]):drawArm(armPts(1,0),id,c,[],[]);vb=isBeast(t)?'236 240 120 150':'235 170 140 180';break;
+    case 'legs':inner+=drawLegs(t,c,[]);vb='80 300 260 210';break;
+    case 'wings':inner+=drawWings(t,c);vb='10 70 400 230';break;
+    case 'tail':inner+=drawTail(t,c);vb='200 170 200 200';break;
+  }
+  U='m';return svgWrap(inner,vb);
+}
+</script>
+<script>
+/* ============================ STATE ============================ */
+const STEPS=[{id:'form',name:'Form'},{id:'parts',name:'Parts'},{id:'style',name:'Style'},{id:'powers',name:'Powers'},{id:'profile',name:'Profile'}];
+const SLOT_DEFS={head:HEADS,eyes:EYESTYLES,torso:TORSOS,arms:ARMS,legs:LEGS,wings:WINGS,tail:TAILS};
+let S,step=0,partsTab='head',styleTab='colors',powerCat='all',notice='';
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const rint=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+function defaultState(form,keep={}){
+  const f=FORMS[form];
+  return {form,arms:f.d.arms,legs:f.d.legs,eyes:f.d.eyes,size:f.d.size,wings:!!f.d.wings,tail:!!f.d.tail,parts:{...f.d.parts},colors:{...f.d.colors},pattern:'none',
+    clothing:'none',accessories:[],alterations:[],enhancements:[],powers:[],name:'',species:'',planet:'',...keep};
+}
+function allowed(slot,st){
+  const defs=SLOT_DEFS[slot];
+  return Object.keys(defs).filter(id=>{const d=defs[id];if(d.forms&&!d.forms.includes(st.form))return false;if(slot==='legs'&&!d.counts.includes(st.legs))return false;return true});
+}
+function normalize(st){
+  const f=FORMS[st.form]||FORMS.humanoid;if(!FORMS[st.form])st.form='humanoid';
+  if(!st.parts||typeof st.parts!=='object')st.parts={};if(!st.colors||typeof st.colors!=='object')st.colors={};
+  for(const k of ['accessories','alterations','enhancements','powers'])if(!Array.isArray(st[k]))st[k]=[];
+  for(const k of ['name','species','planet'])st[k]=typeof st[k]==='string'?st[k].replace(/[\u0000-\u001f\u007f<>]/g,'').slice(0,28):'';
+  st.wings=!!st.wings;st.tail=!!st.tail;
+  if(!f.arms.includes(st.arms))st.arms=f.d.arms;if(!f.legs.includes(st.legs))st.legs=f.d.legs;if(!f.eyes.includes(st.eyes))st.eyes=f.d.eyes;
+  if(!SIZES[st.size])st.size='medium';
+  for(const slot of Object.keys(SLOT_DEFS)){const ok=allowed(slot,st);if(!ok.includes(st.parts[slot]))st.parts[slot]=ok.includes(f.d.parts[slot])?f.d.parts[slot]:ok[0]}
+  if(!PATTERNS[st.pattern])st.pattern='none';if(!CLOTHING[st.clothing])st.clothing='none';
+  st.accessories=(st.accessories||[]).filter(a=>ACCESSORIES[a]);st.alterations=(st.alterations||[]).filter(a=>ALTERATIONS[a]);
+  st.enhancements=(st.enhancements||[]).filter(a=>ENHANCEMENTS[a]);st.powers=(st.powers||[]).filter(p=>POWERS.some(q=>q.id===p)).slice(0,MAX_POWERS);
+  for(const k of ['primary','secondary','accent','eye'])if(!/^#[0-9a-f]{6}$/i.test(st.colors[k]||''))st.colors[k]=f.d.colors[k];
+  return st;
+}
+function computeStats(st){
+  const s={...FORMS[st.form].stats};const add=(k,v)=>{s[k]=(s[k]||0)+v};
+  ({small:()=>{add('spd',2);add('str',-2);add('dur',-1)},large:()=>{add('str',1);add('dur',1);add('spd',-1)},giant:()=>{add('str',2);add('dur',2);add('spd',-2)}}[st.size]||(()=>{}))();
+  if(st.arms>=4)add('str',1);if(st.arms===6)add('str',1);if(st.legs===6)add('spd',1);if(st.wings)add('spd',1);if(st.tail)add('dur',1);
+  for(const id of st.powers){const p=POWERS.find(q=>q.id===id);if(!p)continue;const nat=p.aff.includes(st.form);let best=null;for(const [k,v] of Object.entries(p.mods)){add(k,v);if(!best||v>p.mods[best])best=k}if(nat&&best)add(best,1)}
+  for(const id of st.enhancements){const e=ENHANCEMENTS[id];if(e)for(const [k,v] of Object.entries(e.mods))add(k,v)}
+  for(const k in s)s[k]=Math.max(1,Math.min(10,s[k]));return s;
+}
+const genName=()=>pick(NAME_A)+pick(NAME_B);
+const genSpecies=()=>pick(SPEC_A)+pick(SPEC_B);
+const genPlanet=()=>pick(PLAN_A)+pick(PLAN_B);
+function bio(st){
+  const f=FORMS[st.form],name=h(st.name||'This unnamed specimen'),sp=h(st.species||'an unclassified species'),pl=h(st.planet||'an uncharted world');
+  const size=SIZES[st.size].name.toLowerCase(),limbs=[];
+  if(st.arms)limbs.push(`${st.arms} ${ARMS[st.parts.arms].name.toLowerCase()} ${FORMS[st.form].layout==='beast'?'forelimbs':'arms'}`);
+  limbs.push(st.legs===0?`no legs (${LEGS[st.parts.legs].name.toLowerCase()} base)`:st.legs===1?`a single ${LEGS[st.parts.legs].name.toLowerCase()} tail`:`${st.legs} ${LEGS[st.parts.legs].name.toLowerCase()} legs`);
+  if(st.wings)limbs.push(`${WINGS[st.parts.wings].name.toLowerCase()} wings`);if(st.tail)limbs.push(`a ${TAILS[st.parts.tail].name.toLowerCase()} tail`);
+  const pw=st.powers.map(id=>POWERS.find(p=>p.id===id).name.toLowerCase());
+  const nat=st.powers.filter(id=>POWERS.find(p=>p.id===id).aff.includes(st.form)).length;
+  const gear=[st.clothing!=='none'?CLOTHING[st.clothing].name.toLowerCase():null,...st.accessories.map(a=>ACCESSORIES[a].name.toLowerCase())].filter(Boolean);
+  const alt=[...st.alterations.map(a=>ALTERATIONS[a].name.toLowerCase()),...st.enhancements.map(a=>ENHANCEMENTS[a].name.toLowerCase())];
+  const st2=computeStats(st),top=Object.entries(st2).sort((a,b)=>b[1]-a[1])[0];
+  let t=`<p><b>${name}</b> is a ${size} ${f.name.toLowerCase()} of ${sp}, native to ${pl}. The ${HEADS[st.parts.head].name.toLowerCase()} head ${st.eyes?`carries ${st.eyes} ${EYESTYLES[st.parts.eyes].name.toLowerCase()} eye${st.eyes>1?'s':''}`:'has no eyes at all and tracks prey by scent'} ${FORMS[st.form].layout==='beast'?'in front of':'above'} a ${TORSOS[st.parts.torso].name.toLowerCase()} body with ${limbs.join(', ')}.</p>`;
+  if(gear.length||alt.length)t+=`<p>${gear.length?`Field gear: ${gear.join(', ')}. `:''}${alt.length?`Notable traits: ${alt.join(', ')}.`:''}</p>`;
+  t+=pw.length?`<p>Known abilities: ${pw.join(', ')}${nat?` (${nat} natural to the species)`:''}. Strongest rating: ${STAT_NAMES[top[0]]} ${top[1]}/10.</p>`:`<p>No abilities catalogued yet. Strongest rating: ${STAT_NAMES[top[0]]} ${top[1]}/10.</p>`;
+  return t;
+}
+function scramble(){
+  const form=pick(ALL),f=FORMS[form];const st=defaultState(form,{name:genName(),species:genSpecies(),planet:genPlanet()});
+  st.arms=pick(f.arms);st.legs=pick(f.legs);st.eyes=pick(f.eyes);st.size=pick(Object.keys(SIZES));st.wings=Math.random()<.3;st.tail=Math.random()<.4;
+  for(const slot of Object.keys(SLOT_DEFS))st.parts[slot]=pick(allowed(slot,st));
+  const pal=pick(PALETTES);st.colors={primary:pal.c[0],secondary:pal.c[1],accent:pal.c[2],eye:pal.c[3]};
+  st.pattern=pick(Object.keys(PATTERNS));st.clothing=Math.random()<.5?'none':pick(Object.keys(CLOTHING));
+  const take=(obj,n)=>{const k=Object.keys(obj).sort(()=>Math.random()-.5);return k.slice(0,n)};
+  st.accessories=take(ACCESSORIES,rint(0,2));st.alterations=take(ALTERATIONS,rint(0,2));st.enhancements=take(ENHANCEMENTS,rint(0,1));
+  const nat=POWERS.filter(p=>p.aff.includes(form)).sort(()=>Math.random()-.5),rest=POWERS.filter(p=>!p.aff.includes(form)).sort(()=>Math.random()-.5);
+  st.powers=[...nat.slice(0,2),...rest].slice(0,rint(2,4)).map(p=>p.id);
+  S=normalize(st);notice='';render();
+}
+function setForm(form){S=normalize(defaultState(form,{name:S.name,species:S.species,planet:S.planet,clothing:S.clothing,accessories:[...S.accessories],alterations:[...S.alterations],enhancements:[...S.enhancements],powers:[...S.powers]}));render()}
+
+/* ---- persistence ---- */
+const LS_CUR='alien-builder:current',LS_HANGAR='alien-builder:hangar',LS_CARDS='alien-builder:cards';
+function saveCard(png,name,form){
+  const cards=lsGet(LS_CARDS)||[];cards.unshift({ts:Date.now(),name,form,png});let dropped=0;
+  while(cards.length){try{localStorage.setItem(LS_CARDS,JSON.stringify(cards));return {ok:true,count:cards.length,dropped}}catch(e){if(cards.length===1)return {ok:false};cards.pop();dropped++}}
+  return {ok:false};
+}
+const safeImg=u=>typeof u==='string'&&/^data:image\/(png|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(u)?u:'';
+const archiveSize=()=>{try{return ((localStorage.getItem(LS_CARDS)||'').length*2/1048576).toFixed(1)}catch(e){return '0.0'}};
+function lsGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}
+function encode(st){try{return btoa(unescape(encodeURIComponent(JSON.stringify(st)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}catch(e){return ''}}
+const CODE_KEYS=['form','arms','legs','eyes','size','wings','tail','pattern','clothing','accessories','alterations','enhancements','powers','name','species','planet'];
+function decode(code){try{if(typeof code!=='string'||code.length>8000)return null;const b=code.trim().replace(/-/g,'+').replace(/_/g,'/');const j=JSON.parse(decodeURIComponent(escape(atob(b+'='.repeat((4-b.length%4)%4)))));if(!j||typeof j!=='object'||Array.isArray(j)||!j.parts||typeof j.parts!=='object'||!j.colors||typeof j.colors!=='object')return null;
+  const base=defaultState(typeof j.form==='string'?j.form:'humanoid'),st={...base};for(const k of CODE_KEYS)if(Object.prototype.hasOwnProperty.call(j,k))st[k]=j[k];
+  st.parts={...base.parts};for(const k of Object.keys(SLOT_DEFS))if(typeof j.parts[k]==='string')st.parts[k]=j.parts[k];
+  st.colors={...base.colors};for(const k of ['primary','secondary','accent','eye'])if(typeof j.colors[k]==='string')st.colors[k]=j.colors[k];
+  return normalize(st)}catch(e){return null}}
+
+/* ============================ UI ============================ */
+const $=id=>document.getElementById(id);
+const h=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function render(){
+  normalize(S);lsSet(LS_CUR,S);
+  $('preview').innerHTML=fullSVG(S,'m','role="img" aria-label="Alien preview"',true);
+  $('stageName').textContent=S.name||'Unnamed specimen';
+  $('stageForm').textContent=`${FORMS[S.form].name} · ${SIZES[S.size].name}${S.species?' · '+S.species:''}`;
+  const st=computeStats(S);
+  $('stageStats').innerHTML=Object.keys(STAT_NAMES).map(k=>`<div class="stat"><b>${st[k]}</b><div class="meter"><i style="width:${st[k]*10}%"></i></div>${STAT_NAMES[k]}</div>`).join('');
+  $('stepper').innerHTML=STEPS.map((s,i)=>`<button type="button" class="step ${i===step?'active':''} ${i<step?'done':''}" data-act="goto" data-val="${i}"><span class="n">${i+1}</span>${s.name}</button>`).join('');
+  $('btnBack').disabled=step===0;$('btnNext').textContent=step===STEPS.length-1?'Export card':'Next';
+  $('navLabel').textContent=`Step ${step+1} of ${STEPS.length} · ${STEPS[step].name}`;
+  $('panel').innerHTML=[renderForm,renderParts,renderStyle,renderPowers,renderProfile][step]();
+}
+const card=(act,val,sel,thumb,title,desc,extra='',tag='')=>`<button type="button" class="card ${sel?'sel':''}" data-act="${act}" data-val="${val}" ${extra}>${thumb?`<div class="thumb">${thumb}</div>`:''}${tag?`<span class="tag">${tag}</span>`:''}<span class="title">${h(title)}</span>${desc?`<span class="desc">${h(desc)}</span>`:''}</button>`;
+const chips=(key,vals,cur,labels,ok)=>`<div class="chips">${vals.map(v=>`<button type="button" class="chip ${v===cur?'sel':''}" data-act="set" data-key="${key}" data-val="${v}" ${ok&&!ok.includes(v)?'disabled title="Not available for this form"':''}>${labels?labels(v):v}</button>`).join('')}</div>`;
+function renderForm(){
+  const f=FORMS[S.form];
+  return `<div class="panel-head"><div><h2>Choose a form</h2><p>Every species starts from a base body plan. Pick one, then set how many limbs and eyes it grows.</p></div></div>
+  <div class="grid">${ALL.map(id=>{const d=FORMS[id];return card('form',id,S.form===id,fullSVG(defaultState(id),'f'+id),d.name,d.desc,'',d.tag)}).join('')}</div>
+  <div class="section"><h3>Body attributes</h3>
+    <div class="attr-row"><label>Size<small>${SIZES[S.size].desc}</small></label>${chips('size',Object.keys(SIZES),S.size,v=>SIZES[v].name)}</div>
+    <div class="attr-row"><label>Arms<small>Greyed counts do not fit a ${f.name.toLowerCase()}</small></label>${chips('arms',[0,2,4,6],S.arms,v=>v,f.arms)}</div>
+    <div class="attr-row"><label>Legs<small>0 hovers or pools, 1 is a tail</small></label>${chips('legs',[0,1,2,4,6],S.legs,v=>v,f.legs)}</div>
+    <div class="attr-row"><label>Eyes<small>0 hunts by scent and sound</small></label>${chips('eyes',[0,1,2,3,4,6],S.eyes,v=>v,f.eyes)}</div>
+    <div class="attr-row"><label>Extras</label><div class="chips">
+      <button type="button" class="toggle ${S.wings?'on':''}" data-act="toggle" data-key="wings"><i></i>Wings</button>
+      <button type="button" class="toggle ${S.tail?'on':''}" data-act="toggle" data-key="tail"><i></i>Tail</button></div></div>
+  </div>`;
+}
+function renderParts(){
+  const tabs=[['head','Head'],...(S.eyes?[['eyes','Eyes']]:[]),['torso','Torso'],...(S.arms?[['arms','Arms']]:[]),['legs',S.legs===0?'Base':S.legs===1?'Tail base':'Legs'],...(S.wings?[['wings','Wings']]:[]),...(S.tail?[['tail','Tail']]:[])];
+  if(!tabs.some(t=>t[0]===partsTab))partsTab='head';
+  const defs=SLOT_DEFS[partsTab],ok=allowed(partsTab,S);
+  return `<div class="panel-head"><div><h2>Assemble the body</h2><p>Parts shown here fit a ${FORMS[S.form].name.toLowerCase()} with ${S.arms} arms and ${S.legs} leg${S.legs===1?'':'s'}. Change the form to unlock others.</p></div></div>
+  <div class="tabs">${tabs.map(([id,n])=>`<button type="button" class="tab ${partsTab===id?'sel':''}" data-act="ptab" data-val="${id}">${n}</button>`).join('')}</div>
+  <div class="grid">${ok.map(id=>card('part',id,S.parts[partsTab]===id,partPreview(partsTab,id,S),defs[id].name,defs[id].desc,`data-slot="${partsTab}"`)).join('')}</div>`;
+}
+function renderStyle(){
+  const tabs=[['colors','Colors'],['clothing','Clothing'],['accessories','Accessories'],['alterations','Alterations'],['enhancements','Enhancements']];
+  let body='';
+  if(styleTab==='colors'){
+    body=`<div class="section"><h3>Hide colors</h3><div class="colors">${[['primary','Primary hide'],['secondary','Markings'],['accent','Energy glow'],['eye','Eyes']].map(([k,n])=>`<div class="color"><label for="c-${k}">${n}</label><input type="color" id="c-${k}" data-color="${k}" value="${S.colors[k]}"></div>`).join('')}</div>
+    <div class="section-title"><h3>Palettes</h3><span class="hint">Click to apply all four</span></div><div class="swatches">${PALETTES.map((p,i)=>`<button type="button" class="swatch" data-act="palette" data-val="${i}" title="${p.name}" aria-label="${p.name} palette">${p.c.map(c=>`<i style="background:${c}"></i>`).join('')}</button>`).join('')}</div>
+    <h3>Markings pattern</h3>${chips('pattern',Object.keys(PATTERNS),S.pattern,v=>PATTERNS[v].name)}</div>`;
+  } else if(styleTab==='clothing'){
+    body=`<div class="grid tight">${Object.entries(CLOTHING).map(([id,d])=>card('set',id,S.clothing===id,null,d.name,d.desc,'data-key="clothing"')).join('')}</div>`;
+  } else {
+    const src={accessories:ACCESSORIES,alterations:ALTERATIONS,enhancements:ENHANCEMENTS}[styleTab];
+    body=`<p class="hint">Pick as many as you like. Enhancements also change the stat ratings.</p><div class="grid tight">${Object.entries(src).map(([id,d])=>card('multi',id,S[styleTab].includes(id),null,d.name,d.desc+(d.mods?' '+Object.entries(d.mods).map(([k,v])=>`${STAT_NAMES[k]} ${v>0?'+':''}${v}`).join(', ')+'.':''),`data-key="${styleTab}"`)).join('')}</div>`;
+  }
+  return `<div class="panel-head"><div><h2>Style the specimen</h2><p>Colors, gear, body alterations and enhancements. Everything layers on top of the parts you chose.</p></div></div>
+  <div class="tabs">${tabs.map(([id,n])=>`<button type="button" class="tab ${styleTab===id?'sel':''}" data-act="stab" data-val="${id}">${n}</button>`).join('')}</div>${body}`;
+}
+function renderPowers(){
+  const list=POWERS.filter(p=>powerCat==='all'||p.cat===powerCat);const full=S.powers.length>=MAX_POWERS;
+  return `<div class="panel-head"><div><h2>Grant powers</h2><p>Choose up to ${MAX_POWERS}. Powers natural to a ${FORMS[S.form].name.toLowerCase()} are marked and come with a bonus.</p></div><div class="counter">${S.powers.length} / ${MAX_POWERS}</div></div>
+  <div class="chips"><button type="button" class="chip ${powerCat==='all'?'sel':''}" data-act="pcat" data-val="all">All</button>${Object.entries(CATS).map(([id,c])=>`<button type="button" class="chip ${powerCat===id?'sel':''}" data-act="pcat" data-val="${id}">${c.name}</button>`).join('')}</div>
+  <div class="grid wide">${list.map(p=>{const sel=S.powers.includes(p.id),nat=p.aff.includes(S.form);return `<button type="button" class="card power ${sel?'sel':''}" data-act="power" data-val="${p.id}" ${!sel&&full?'disabled':''}>${nat?'<span class="badge">Natural</span>':''}<span class="cat" style="--c:${CATS[p.cat].c};margin-top:${nat?'18px':'0'}"><i></i>${CATS[p.cat].name}</span><span class="title">${h(p.name)}</span><span class="desc">${h(p.desc)}</span><span class="mods">${Object.entries(p.mods).map(([k,v])=>`<span>${STAT_NAMES[k]} +${v}</span>`).join('')}</span></button>`}).join('')}</div>`;
+}
+function renderProfile(){
+  const hangar=lsGet(LS_HANGAR)||[],cards=lsGet(LS_CARDS)||[];const st=computeStats(S);
+  return `<div class="panel-head"><div><h2>Specimen profile</h2><p>Name your alien, read its dossier, then save it to the hangar or export a card.</p></div></div>
+  <div class="fields">${[['name','Name',genName],['species','Species',genSpecies],['planet','Home world',genPlanet]].map(([k,n])=>`<div class="field"><label for="f-${k}">${n}</label><div class="row"><input type="text" id="f-${k}" data-text="${k}" value="${h(S[k])}" maxlength="28" placeholder="${n}"><button type="button" class="btn small" data-act="gen" data-key="${k}" title="Random ${n.toLowerCase()}">Roll</button></div></div>`).join('')}</div>
+  <div class="bio" id="bio">${bio(S)}</div>
+  <div class="summary">
+    <div class="kv"><b>Form</b>${FORMS[S.form].name}, ${SIZES[S.size].name.toLowerCase()}</div>
+    <div class="kv"><b>Body</b>${HEADS[S.parts.head].name} head · ${TORSOS[S.parts.torso].name} torso · ${S.arms} arms · ${S.legs} legs · ${S.eyes} eyes</div>
+    <div class="kv"><b>Gear</b>${[CLOTHING[S.clothing].name,...S.accessories.map(a=>ACCESSORIES[a].name)].join(', ')}</div>
+    <div class="kv"><b>Traits</b>${[...S.alterations.map(a=>ALTERATIONS[a].name),...S.enhancements.map(a=>ENHANCEMENTS[a].name)].join(', ')||'None'}</div>
+    <div class="kv"><b>Powers</b>${S.powers.map(id=>POWERS.find(p=>p.id===id).name).join(', ')||'None'}</div>
+    <div class="kv"><b>Ratings</b>${Object.keys(STAT_NAMES).map(k=>`${STAT_NAMES[k]} ${st[k]}`).join(' · ')}</div>
+  </div>
+  <div class="section"><div class="section-title"><h3>Hangar</h3><div class="chips"><button type="button" class="btn small primary" data-act="save">Save to hangar</button><button type="button" class="btn small" data-act="export">Export card</button></div></div>
+    <div class="notice" id="notice">${h(notice)}</div>
+    ${hangar.length?`<div class="hangar">${hangar.map((e,i)=>`<div class="card"><div class="thumb">${fullSVG(normalize(e.state),'h'+i)}</div><span class="title">${h(e.state.name||'Unnamed')}</span><span class="desc">${FORMS[e.state.form]?FORMS[e.state.form].name:''}</span><div class="actions"><button type="button" class="btn small" data-act="load" data-val="${i}">Load</button><button type="button" class="btn small ghost" data-act="del" data-val="${i}">Delete</button></div></div>`).join('')}</div>`:`<div class="empty">Nothing saved yet. Saved aliens live in this browser only.</div>`}
+  </div>
+  <div class="section"><div class="section-title"><h3>Card archive</h3><div class="chips"><span class="hint">${cards.length?`${cards.length} card${cards.length===1?'':'s'} · ${archiveSize()} MB in this browser`:'Every exported card is kept here'}</span>${cards.length?'<button type="button" class="btn small ghost" data-act="clearcards">Clear all</button>':''}</div></div>
+    ${cards.length?`<div class="hangar archive">${cards.map((e,i)=>`<div class="card"><div class="thumb"><img src="${safeImg(e.png)}" alt="Card for ${h(e.name)}" loading="lazy"></div><span class="title">${h(e.name)}</span><span class="desc">${FORMS[e.form]?FORMS[e.form].name+' · ':''}${new Date(e.ts).toLocaleDateString()}</span><div class="actions"><button type="button" class="btn small" data-act="viewcard" data-val="${i}">View</button><button type="button" class="btn small ghost" data-act="delcard" data-val="${i}">Delete</button></div></div>`).join('')}</div>`:`<div class="empty">No cards yet. Use Export card and each one is saved here automatically.</div>`}
+  </div>
+  <div class="section"><h3>Share code</h3><p class="hint">Copy this code to send your alien to someone, or paste a code to load one.</p>
+    <div class="code"><input type="text" id="shareCode" value="${encode(S)}" readonly aria-label="Share code"><button type="button" class="btn small" data-act="copy">Copy</button></div>
+    <div class="code"><input type="text" id="loadCode" placeholder="Paste a share code" aria-label="Paste a share code"><button type="button" class="btn small" data-act="loadcode">Load code</button></div>
+  </div>`;
+}
+
+/* ---- export card ---- */
+function exportCard(){
+  const st=computeStats(S),W=560,H=720,name=S.name||'Unnamed specimen';
+  const pw=S.powers.map(id=>POWERS.find(p=>p.id===id).name);
+  const bars=Object.keys(STAT_NAMES).map((k,i)=>{const y=600+i*22;return `<text x="40" y="${y+11}" font-size="13" fill="#9fb59f" font-family="Helvetica,Arial,sans-serif" font-weight="700">${STAT_NAMES[k].toUpperCase()}</text><rect x="130" y="${y}" width="200" height="12" rx="6" fill="#1f2d22"/><rect x="130" y="${y}" width="${st[k]*20}" height="12" rx="6" fill="#5df23c"/><text x="340" y="${y+11}" font-size="13" fill="#e9f4e6" font-family="Helvetica,Arial,sans-serif" font-weight="700">${st[k]}</text>`}).join('');
+  const powersTxt=pw.length?pw.map((p,i)=>`<text x="380" y="${611+i*22}" font-size="13" fill="#e9f4e6" font-family="Helvetica,Arial,sans-serif">• ${h(p)}</text>`).join(''):`<text x="380" y="611" font-size="13" fill="#9fb59f" font-family="Helvetica,Arial,sans-serif">No powers</text>`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+    <defs><pattern id="grid" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(18)"><circle cx="6" cy="6" r="1.6" fill="#1c2a1f"/></pattern><radialGradient id="bgglow"><stop offset="0" stop-color="#5df23c" stop-opacity=".28"/><stop offset="1" stop-color="#5df23c" stop-opacity="0"/></radialGradient></defs>
+    <rect width="${W}" height="${H}" rx="26" fill="#0b0f0c"/><rect x="18" y="18" width="${W-36}" height="${H-36}" rx="18" fill="url(#grid)" stroke="#2f4636" stroke-width="3"/>
+    <ellipse cx="${W/2}" cy="430" rx="230" ry="150" fill="url(#bgglow)"/>
+    <g transform="translate(91 92) scale(.9)">${svgWrap(alienSVG(S,{fx:true}),'0 0 420 540','width="420" height="540" x="0" y="0"')}</g>
+    <g transform="translate(40 36)"><circle cx="16" cy="16" r="15" fill="#0b0f0c" stroke="#5df23c" stroke-width="3"/>${emblem(16,16,8,'#5df23c')}</g>
+    <text x="80" y="58" font-size="30" fill="#e9f4e6" font-family="Impact,'Arial Black',Helvetica,sans-serif" letter-spacing="1">${h(name)}</text>
+    <text x="80" y="80" font-size="13" fill="#9fb59f" font-family="Helvetica,Arial,sans-serif" letter-spacing="2">${h((S.species||FORMS[S.form].name).toUpperCase())}${S.planet?' · '+h(S.planet.toUpperCase()):''} · ${SIZES[S.size].name.toUpperCase()}</text>
+    <text x="380" y="592" font-size="11" fill="#9fb59f" font-family="Helvetica,Arial,sans-serif" letter-spacing="2">POWERS</text>
+    ${bars}${powersTxt}</svg>`;
+  const img=new Image();const url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+  img.onload=()=>{const cv=document.createElement('canvas');cv.width=W*2;cv.height=H*2;const ctx=cv.getContext('2d');ctx.scale(2,2);ctx.drawImage(img,0,0);
+    let note='';
+    try{$('modalImg').src=cv.toDataURL('image/png');
+      const sm=document.createElement('canvas');sm.width=W;sm.height=H;sm.getContext('2d').drawImage(img,0,0);
+      const r=saveCard(sm.toDataURL('image/jpeg',.84),name,S.form);
+      note=r.ok?`Saved to your card archive in this browser (${r.count} card${r.count===1?'':'s'}, ${archiveSize()} MB).${r.dropped?` The ${r.dropped} oldest card${r.dropped===1?' was':'s were'} removed to make room.`:''}`:'Shown but not saved: this browser\'s storage is full or unavailable.';
+    }catch(e){$('modalImg').src=url;note='Shown but not saved: the image could not be rendered to a file.'}
+    $('modalNote').textContent=note;$('modal').hidden=false;$('modalClose').focus();if(step===4)render()};
+  img.onerror=()=>{$('modalImg').src=url;$('modalNote').textContent='Shown but not saved: the image could not be rendered.';$('modal').hidden=false};
+  img.src=url;
+}
+
+/* ---- events ---- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;const act=b.dataset.act,val=b.dataset.val,key=b.dataset.key;
+  switch(act){
+    case 'goto':step=+val;break;
+    case 'form':setForm(val);return;
+    case 'set':{const v=isNaN(val)?val:+val;if(key==='clothing')S.clothing=v;else S[key]=v;break}
+    case 'toggle':S[key]=!S[key];break;
+    case 'ptab':partsTab=val;break;
+    case 'stab':styleTab=val;break;
+    case 'part':S.parts[b.dataset.slot]=val;break;
+    case 'palette':{const p=PALETTES[+val];S.colors={primary:p.c[0],secondary:p.c[1],accent:p.c[2],eye:p.c[3]};break}
+    case 'multi':{const arr=S[key];const i=arr.indexOf(val);i>=0?arr.splice(i,1):arr.push(val);break}
+    case 'pcat':powerCat=val;break;
+    case 'power':{const i=S.powers.indexOf(val);if(i>=0)S.powers.splice(i,1);else if(S.powers.length<MAX_POWERS)S.powers.push(val);break}
+    case 'gen':S[key]=({name:genName,species:genSpecies,planet:genPlanet})[key]();break;
+    case 'save':{const hg=lsGet(LS_HANGAR)||[];hg.unshift({ts:Date.now(),state:JSON.parse(JSON.stringify(S))});notice=lsSet(LS_HANGAR,hg.slice(0,12))?`Saved ${S.name||'specimen'} to the hangar.`:'Could not save: browser storage is unavailable.';break}
+    case 'load':{const hg=lsGet(LS_HANGAR)||[];if(hg[+val]){S=normalize(JSON.parse(JSON.stringify(hg[+val].state)));notice=`Loaded ${S.name||'specimen'}.`}break}
+    case 'del':{const hg=lsGet(LS_HANGAR)||[];hg.splice(+val,1);lsSet(LS_HANGAR,hg);notice='Removed from the hangar.';break}
+    case 'copy':{const inp=$('shareCode');const done=()=>{notice='Share code copied.';render()};const fb=()=>{inp.focus();inp.select();notice='Select the code and copy it.';render()};if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(inp.value).then(done,fb);else fb();return}
+    case 'loadcode':{const st=decode($('loadCode').value);if(st){S=st;notice=`Loaded ${S.name||'specimen'} from code.`}else notice='That code could not be read. Check that you pasted the whole thing.';break}
+    case 'export':exportCard();return;
+    case 'viewcard':{const cards=lsGet(LS_CARDS)||[];if(cards[+val]&&safeImg(cards[+val].png)){$('modalImg').src=cards[+val].png;$('modalNote').textContent=`${String(cards[+val].name)} · saved ${new Date(cards[+val].ts).toLocaleString()}`;$('modal').hidden=false;$('modalClose').focus()}return}
+    case 'delcard':{const cards=lsGet(LS_CARDS)||[];cards.splice(+val,1);lsSet(LS_CARDS,cards);notice='Card removed from the archive.';break}
+    case 'clearcards':{lsSet(LS_CARDS,[]);notice='Card archive cleared.';break}
+  }
+  render();
+});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset.color){S.colors[t.dataset.color]=t.value;$('preview').innerHTML=fullSVG(S,'m','role="img" aria-label="Alien preview"',true);lsSet(LS_CUR,S);
+    return}
+  if(t.dataset.text){S[t.dataset.text]=t.value;$('stageName').textContent=S.name||'Unnamed specimen';$('stageForm').textContent=`${FORMS[S.form].name} · ${SIZES[S.size].name}${S.species?' · '+S.species:''}`;const b=$('bio');if(b)b.innerHTML=bio(S);const sc=$('shareCode');if(sc)sc.value=encode(S);lsSet(LS_CUR,S)}
+});
+document.addEventListener('change',e=>{if(e.target.dataset.color)render()});
+$('btnBack').addEventListener('click',()=>{if(step>0){step--;render();window.scrollTo({top:0})}});
+$('btnNext').addEventListener('click',()=>{if(step<STEPS.length-1){step++;render();window.scrollTo({top:0})}else exportCard()});
+$('btnScramble').addEventListener('click',scramble);
+$('btnReset').addEventListener('click',()=>{S=defaultState(S.form);notice='';render()});
+$('modalClose').addEventListener('click',()=>{$('modal').hidden=true});
+$('modal').addEventListener('click',e=>{if(e.target===$('modal'))$('modal').hidden=true});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('modal').hidden=true});
+
+/* ---- boot ---- */
+(function(){
+  const lg=document.querySelector('.logo svg');if(lg)lg.insertAdjacentHTML('beforeend',emblem(24,24,14,'#5df23c'));
+  const saved=lsGet(LS_CUR);
+  S=saved&&saved.parts?normalize({...defaultState(saved.form||'humanoid'),...saved,parts:{...defaultState(saved.form||'humanoid').parts,...saved.parts}}):defaultState('humanoid',{name:'Brakkus',species:'Tetramorph',planet:'Khoros Prime'});
+  render();
+})();
+</script>
